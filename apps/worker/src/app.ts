@@ -929,7 +929,9 @@ app.post("/api/invitations/redeem", async (context) => {
   const participantId = crypto.randomUUID();
   const participantSessionId = crypto.randomUUID();
   const issuedAt = Date.now();
-  const participantExpiresAt = Math.min(issuedAt + PARTICIPANT_TTL_MS, claims.expiresAt + PARTICIPANT_TTL_MS);
+  // Invitation expiry is the single-redemption deadline, not a lease on an
+  // admitted participant. Redemption starts a separate, revocable session.
+  const participantExpiresAt = issuedAt + PARTICIPANT_TTL_MS;
   const participantClaims: ParticipantAccessClaims = {
     version: 1,
     kind: "participant_access",

@@ -7,9 +7,9 @@
 - Researcher sessions use random bearer cookies; D1 stores only SHA-256 token hashes. Cookies are HttpOnly, Secure in production, SameSite Strict, and scoped to `/`.
 - Every unsafe researcher request requires the CSRF token in both a readable cookie and `X-CSRF-Token`; D1 stores only its hash.
 - Experiments, versions, calls, invitations, artifacts, manifests, exports, and replay operations enforce owner or administrator access.
-- Invitations are HMAC-signed, call/version/role/template-bound, expire, and can update exactly once. Participant links carry the bearer token in a URL fragment so it is not sent in the initial HTTP request or Worker access logs; the fragment is cleared after redemption.
-- Participant access tokens are HMAC-signed and also matched against a non-revoked D1 session hash.
-- Room credentials expire after 60 seconds, are consumed atomically, and are verified again by the destination Durable Object.
+- Invitations are HMAC-signed, call/version/role/template-bound, expire, and can update exactly once. Their researcher-selected TTL (1 minute to 24 hours) is the redemption deadline only. Participant links carry the bearer token in a URL fragment so it is not sent in the initial HTTP request or Worker access logs; the fragment is cleared after redemption.
+- Successful redemption starts an independent four-hour participant session. Its HMAC-signed access token is also matched against a non-revoked D1 session hash. The session deliberately may outlive the invitation that admitted it; it remains bounded and revocable.
+- Each room credential has its own 60-second TTL, is consumed atomically once, and is verified again by the destination Durable Object.
 - Participant WebSocket payloads cannot select identity. A mismatching `participantId` is explicitly rejected.
 
 ## Evidence integrity
