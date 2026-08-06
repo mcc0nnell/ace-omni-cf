@@ -1,7 +1,8 @@
 # Copy to .dev.vars for local wrangler
 ENVIRONMENT=development
-SESSION_SECRET=dev-session-secret-change-me-in-prod
-INVITE_SECRET=dev-invite-secret-change-me-in-prod
+SESSION_SECRET=local-only-session-secret-32-bytes-minimum-change-me
+TOKEN_SIGNING_SECRET=local-only-token-signing-secret-32-bytes-minimum-change-me
+SCHEDULE_SIGNING_SECRET=local-only-schedule-signing-secret-32-bytes-minimum-change-me
 # Optional TURN (Cloudflare Realtime) — leave empty for pure P2P local
 # TURN_SECRET=
 # TURN_HOST=

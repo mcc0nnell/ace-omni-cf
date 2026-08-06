@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "echo ok",
-    "test:e2e": "echo 'Playwright vertical-slice placeholder'"
+    "test:e2e": "playwright test --config=playwright.config.ts"
   }
 }

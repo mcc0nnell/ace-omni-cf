@@ -5,7 +5,11 @@
   "type": "module",
   "main": "./src/index.ts",
   "scripts": {
-    "lint": "echo ok",
-    "test": "echo ok"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ace-omni/domain": "*"
   }
 }

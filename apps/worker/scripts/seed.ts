@@ -1,90 +1,129 @@
 /**
- * Local seed: administrator + sample experiment.
- * Outputs SQL for: wrangler d1 execute ace-omni-db --local --file=...
+ * Idempotent, local-only synthetic seed for ACE Omni.
+ * This file is not imported by the Worker production bundle.
+ * ©2024 The MITRE Corporation. Approved for Public Release 24-0463.
  */
-import { hashPassword } from "../src/security";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+import { ExperimentConfigSchema } from "@ace-omni/domain";
+import { canonicalJson, hashPassword, sha256Hex } from "../src/security";
+
+const RESEARCHER_ID = "00000000-0000-4000-8000-000000000001";
+const EXPERIMENT_ID = "00000000-0000-4000-8000-000000000010";
+const VERSION_ID = "00000000-0000-4000-8000-000000000020";
+const email = "researcher@omni.local";
+const password = process.env.OMNI_SEED_PASSWORD ?? "local-only-synthetic-password";
+
+function sql(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`;
+}
 
 async function main() {
-  const password = "omni-admin-2026";
-  const hash = await hashPassword(password);
-  const adminId = "00000000-0000-4000-8000-000000000001";
-  const now = new Date().toISOString();
+  if (process.env.ENVIRONMENT === "production" || process.argv.includes("--remote")) {
+    throw new Error("The synthetic seed is local-only and refuses production or --remote execution");
+  }
+  const persistIndex = process.argv.indexOf("--persist-to");
+  const persistTo = persistIndex >= 0 ? process.argv[persistIndex + 1] : undefined;
+  if (persistIndex >= 0 && !persistTo) throw new Error("--persist-to requires a path");
 
-  const config = {
+  const config = ExperimentConfigSchema.parse({
     version: 1,
     trsType: "IP_CTS",
     participants: [
+      { id: "00000000-0000-4000-8000-000000000011", name: "Synthetic caller", role: "caller", captions: { engine: "mock" } },
+      { id: "00000000-0000-4000-8000-000000000012", name: "Synthetic callee", role: "callee", captions: { engine: "mock" } },
+    ],
+    timing: { callTimeoutSec: 120, mockCaptionIntervalMs: 1_500, scheduleLeadMs: 500 },
+    manipulations: [
       {
-        id: "p1",
-        name: "Caller A",
-        role: "caller",
-        interface: { incomingAudio: { mono: false, balanceL: 0, balanceR: 0 } },
-        audioStream: {
-          backgroundNoise: { enabled: true, source: "white", gainDb: -15 },
-          packetDrop: { enabled: false },
-          filter: { enabled: false },
-        },
-        captions: {
-          engine: "mock",
-          showFinalizedOnly: false,
-          punctuation: true,
-          captionDelayMs: 500,
-          errorSimulation: false,
-        },
-      },
-      {
-        id: "p2",
-        name: "Callee B",
-        role: "callee",
-        interface: { incomingAudio: { mono: false, balanceL: 0, balanceR: 0 } },
-        audioStream: {
-          backgroundNoise: { enabled: false },
-          packetDrop: { enabled: true, durationMs: 300, intervalMs: 8000 },
-          filter: { enabled: true, type: "lowpass", frequencyHz: 3000 },
-        },
-        captions: {
-          engine: "mock",
-          showFinalizedOnly: true,
-          punctuation: true,
-          captionDelayMs: 0,
-        },
+        id: "seed-caption-delay",
+        type: "caption_delay",
+        targetRole: "caller",
+        targetStream: "captions",
+        startOffsetMs: 2_000,
+        durationMs: 5_000,
+        parameters: { delayMs: 500 },
+        seed: 20_260_806,
       },
     ],
-    dataCollection: {
-      transcripts: { asrCaptionStream: true, rawAsr: true },
-      audioRecordings: { microphone: true, received: true, manipulated: true },
-      videoRecordings: { local: false, remote: false },
-      screenRecordings: { enabled: false },
-      experimentEvents: true,
+    evidencePolicy: {
+      microphoneAudio: true,
+      receivedAudio: false,
+      manipulatedAudio: false,
+      localVideo: false,
+      remoteVideo: false,
+      rawCaptions: false,
+      displayedCaptions: false,
     },
-    callTimeoutSec: 600,
-  };
+    mockAsr: { utterances: ["Synthetic seed caption; no participant data."] },
+  });
+  const configJson = canonicalJson(config);
+  const configSha256 = await sha256Hex(configJson);
+  const passwordHash = await hashPassword(password);
+  const now = new Date().toISOString();
+  const statements = `-- Local-only synthetic ACE Omni seed.\nPRAGMA foreign_keys = ON;\n
+INSERT OR IGNORE INTO users (id, email, display_name, role, password_hash, created_at)
+VALUES (${sql(RESEARCHER_ID)}, ${sql(email)}, 'Synthetic Researcher', 'researcher', ${sql(passwordHash)}, ${sql(now)});
 
-  console.log("-- Seed data for ACE Omni local development");
-  console.log(`-- Admin credentials: admin@omni.local / ${password}`);
-  console.log("");
-  console.log(
-    `INSERT OR REPLACE INTO users (id, email, display_name, role, password_hash, created_at, last_login_at)
-VALUES ('${adminId}', 'admin@omni.local', 'Local Administrator', 'administrator', '${hash}', '${now}', NULL);`
-  );
+INSERT OR IGNORE INTO experiments (
+  id, name, alias, description, purpose, phase, config_json, current_version,
+  created_by, modified_by, created_at, updated_at
+) VALUES (
+  ${sql(EXPERIMENT_ID)}, 'Synthetic IP CTS seed', 'synthetic-ip-cts-seed',
+  'Local-only synthetic experiment for installation verification.',
+  'Verify immutable experiment configuration without participant data.',
+  'draft', ${sql(configJson)}, 1, ${sql(RESEARCHER_ID)}, ${sql(RESEARCHER_ID)}, ${sql(now)}, ${sql(now)}
+);
 
-  const expId = "00000000-0000-4000-8000-000000000010";
-  console.log(
-    `INSERT OR REPLACE INTO experiments (id, name, alias, description, purpose, phase, config_json, created_by, modified_by, created_at, updated_at)
-VALUES (
-  '${expId}',
-  'IP CTS Caption Delay Study',
-  'ip-cts-delay-01',
-  'Baseline IP Captioned Telephone Service experiment with deterministic caption delay and background noise.',
-  'Measure impact of 500ms caption delay and mild background noise on communication effectiveness.',
-  'active',
-  '${JSON.stringify(config).replace(/'/g, "''")}',
-  '${adminId}',
-  '${adminId}',
-  '${now}',
-  '${now}'
-);`
-  );
+INSERT OR IGNORE INTO experiment_versions (
+  id, experiment_id, version, schema_version, config_json, config_sha256,
+  revision_note, created_by, created_at
+) VALUES (
+  ${sql(VERSION_ID)}, ${sql(EXPERIMENT_ID)}, 1, 1, ${sql(configJson)}, ${sql(configSha256)},
+  'Initial synthetic seed version', ${sql(RESEARCHER_ID)}, ${sql(now)}
+);
+`;
+
+  const temporaryDirectory = await mkdtemp(`${tmpdir()}/ace-omni-seed-`);
+  const seedPath = `${temporaryDirectory}/seed.sql`;
+  try {
+    await writeFile(seedPath, statements, { encoding: "utf8", mode: 0o600 });
+    const workerRoot = fileURLToPath(new URL("..", import.meta.url));
+    const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
+    const wrangler = `${repositoryRoot}/node_modules/wrangler/bin/wrangler.js`;
+    const args = [
+      wrangler,
+      "d1",
+      "execute",
+      "ace-omni-db",
+      "--config",
+      `${workerRoot}/wrangler.jsonc`,
+      "--local",
+      "--file",
+      seedPath,
+    ];
+    if (persistTo) args.push("--persist-to", persistTo);
+    const result = spawnSync(process.execPath, args, {
+      cwd: repositoryRoot,
+      env: {
+        ...process.env,
+        CI: process.env.CI ?? "true",
+        WRANGLER_SEND_METRICS: "false",
+        XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME ?? `${tmpdir()}/ace-omni-xdg-seed`,
+      },
+      encoding: "utf8",
+      stdio: "inherit",
+    });
+    if (result.status !== 0) throw new Error(`Wrangler seed failed with status ${result.status}`);
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  }
+  console.log(`Seeded local synthetic researcher ${email}. Password source: ${process.env.OMNI_SEED_PASSWORD ? "OMNI_SEED_PASSWORD" : "documented local-only default"}.`);
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+});
