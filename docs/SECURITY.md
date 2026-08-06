@@ -7,9 +7,9 @@
 - Researcher sessions use random bearer cookies; D1 stores only SHA-256 token hashes. Cookies are HttpOnly, Secure in production, SameSite Strict, and scoped to `/`.
 - Every unsafe researcher request requires the CSRF token in both a readable cookie and `X-CSRF-Token`; D1 stores only its hash.
 - Experiments, versions, calls, invitations, artifacts, manifests, exports, and replay operations enforce owner or administrator access.
-- Invitations are HMAC-signed, call/version/role/template-bound, expire, and can update exactly once. Participant links carry the bearer token in a URL fragment so it is not sent in the initial HTTP request or Worker access logs; the fragment is cleared after redemption.
-- Participant access tokens are HMAC-signed and also matched against a non-revoked D1 session hash.
-- Room credentials expire after 60 seconds, are consumed atomically, and are verified again by the destination Durable Object.
+- Invitations are HMAC-signed, call/version/role/template-bound, expire, and can update exactly once. Their researcher-selected TTL (1 minute to 24 hours) is the redemption deadline only. Participant links carry the bearer token in a URL fragment so it is not sent in the initial HTTP request or Worker access logs; the fragment is cleared after redemption.
+- Successful redemption starts an independent four-hour participant session. Its HMAC-signed access token is also matched against a non-revoked D1 session hash. The session deliberately may outlive the invitation that admitted it; it remains bounded and revocable.
+- Each room credential has its own 60-second TTL, is consumed atomically once, and is verified again by the destination Durable Object.
 - Participant WebSocket payloads cannot select identity. A mismatching `participantId` is explicitly rejected.
 
 ## Evidence integrity
@@ -38,6 +38,13 @@ Production startup rejects missing, short, or recognizable development placehold
 - CSP, frame denial, MIME sniffing denial, no-referrer, no-store, opener isolation, and media permission policies are emitted on Worker responses.
 - WebSocket signaling can target only a currently connected participant in the same per-call object.
 - SDP and ICE bodies are relayed but not persisted; event storage records only type, actor, target, sequence, and timing.
+
+## Call lifecycle integrity
+
+- The Durable Object's connection ID is authoritative for presence. A close from a socket replaced by an authorized reconnect cannot write D1 `left_at`, append `participant_left`, or broadcast a departure; a genuine close can do those things exactly once. Socket closure after a terminal transition cannot append events beyond the finalized manifest boundary.
+- A call can become `ended` only from `active`. A pre-start `end_call` instead creates an explicit `failed` terminal state, stable `failed_reason`, and immutable `call_failed` event. Finalization reports that failure distinctly rather than presenting it as an incomplete lifecycle.
+- When the authoritative call clock starts, the room persists one alarm at the exact pinned `callTimeoutSec` deadline. A timeout is attributed to the system, records `reason: call_timeout`, and produces a normally finalizable ended call. Normal termination clears the alarm, and duplicate delivery is idempotent.
+- Integration tests enforce the research-integrity invariant directly: every exercised terminal state either produces a valid evidence manifest or carries a failure reason.
 
 ## Dependency integrity
 

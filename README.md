@@ -142,7 +142,7 @@ No production resources are created by these commands. `npm run build` performs 
 
 ## Government notice and modification provenance
 
-The original ACE Omni notice is preserved in [LICENSE](LICENSE): the software/technical data was produced for the U.S. Government under Contract Number 75FCMC18D0047 and is subject to FAR 52.227-14.
+The original ACE Omni notice is preserved in [LICENSE](LICENSE), and the derivative-work record is separated in [NOTICE](NOTICE). The original notice states that the software/technical data was produced for the U.S. Government under Contract Number 75FCMC18D0047 and is subject to FAR 52.227-14.
 
 - **Original MITRE material:** ©2024 The MITRE Corporation. Approved for Public Release; Distribution Unlimited 24-0463.
 - **Cloudflare-native modifications:** 2026, Robert McConnell ([@mcc0nnell](https://github.com/mcc0nnell)), as identified by this repository's Git history.

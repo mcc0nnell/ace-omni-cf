@@ -501,26 +501,34 @@ export class CallRoom extends DurableObject<WorkerEnv> {
     }
 
     if (data.type === "end_call") {
+      if (meta.state !== "active") {
+        await this.failCall(meta, "end_call_before_start", attachment.participantId);
+        return;
+      }
       await this.endCall(meta, attachment.participantId, data.clientClockMs);
     }
   }
 
   async webSocketClose(socket: WebSocket): Promise<void> {
     const attachment = this.attachment(socket);
-    if (!attachment) return;
+    const meta = this.readMeta();
+    if (!attachment || !meta || meta.state === "ended" || meta.state === "failed") return;
     const now = Date.now();
-    this.ctx.storage.sql.exec(
+    const authoritativeClose = this.ctx.storage.sql.exec<{ participant_id: string }>(
       `UPDATE participants SET left_at_ms = ?
-       WHERE participant_id = ? AND connection_id = ?`,
+       WHERE participant_id = ? AND connection_id = ? AND left_at_ms IS NULL
+       RETURNING participant_id`,
       now,
       attachment.participantId,
       attachment.connectionId,
-    );
+    ).toArray();
+    if (authoritativeClose.length === 0) return;
+
     await this.env.DB.prepare(
       `UPDATE call_participants SET left_at = ?
        WHERE call_id = ? AND id = ?`,
     )
-      .bind(new Date(now).toISOString(), this.requireMeta().call_id, attachment.participantId)
+      .bind(new Date(now).toISOString(), meta.call_id, attachment.participantId)
       .run();
     await this.recordEvent("participant_left", attachment.participantId, {
       connectionId: attachment.connectionId,
@@ -567,6 +575,10 @@ export class CallRoom extends DurableObject<WorkerEnv> {
     });
     const scheduleJson = canonicalJson(schedule);
 
+    await this.ctx.storage.setAlarm(
+      callClockStartMs + config.timing.callTimeoutSec * 1_000,
+    );
+
     this.ctx.storage.sql.exec(
       `UPDATE room_meta SET
          state = 'active', call_clock_start_ms = ?, schedule_revision = ?, schedule_json = ?
@@ -603,38 +615,85 @@ export class CallRoom extends DurableObject<WorkerEnv> {
     this.broadcast({ type: "schedule_issued", schedule });
   }
 
+  async alarm(): Promise<void> {
+    const meta = this.readMeta();
+    if (!meta || meta.state !== "active") return;
+    await this.endCall(meta, null, null, "call_timeout");
+    await this.syncPendingEvents();
+  }
+
   private async endCall(
     meta: RoomMetaRow,
-    participantId: string,
-    clientClockMs: number,
+    participantId: string | null,
+    clientClockMs: number | null,
+    reason = "participant_end_call",
   ): Promise<void> {
-    if (meta.state === "ended") return;
+    if (meta.state === "ended" || meta.state === "failed") return;
+    if (meta.state !== "active") {
+      await this.failCall(meta, "end_call_before_start", participantId);
+      return;
+    }
+    const latest = this.requireMeta();
+    if (latest.state === "ended" || latest.state === "failed") return;
+    if (latest.state !== "active") {
+      await this.failCall(latest, "end_call_before_start", participantId);
+      return;
+    }
     const endedAtMs = Date.now();
-    const durationMs = Math.max(0, endedAtMs - (meta.call_clock_start_ms ?? endedAtMs));
-    this.ctx.storage.sql.exec(
+    const durationMs = Math.max(0, endedAtMs - (latest.call_clock_start_ms ?? endedAtMs));
+    const transition = this.ctx.storage.sql.exec<{ call_id: string }>(
       `UPDATE room_meta SET state = 'ended', ended_at_ms = ?
-       WHERE singleton = 1 AND state != 'ended'`,
+       WHERE singleton = 1 AND state = 'active'
+       RETURNING call_id`,
       endedAtMs,
-    );
+    ).toArray();
+    if (transition.length === 0) return;
+
+    await this.ctx.storage.deleteAlarm();
     await this.env.DB.prepare(
       `UPDATE calls SET state = 'ended', ended_at = ?, duration_ms = ?,
-         duration_sec = ?, updated_at = ? WHERE id = ? AND state != 'ended'`,
+         duration_sec = ?, updated_at = ? WHERE id = ? AND state = 'active'`,
     )
       .bind(
         new Date(endedAtMs).toISOString(),
         durationMs,
         durationMs / 1_000,
         new Date(endedAtMs).toISOString(),
-        meta.call_id,
+        latest.call_id,
       )
       .run();
     await this.recordEvent(
       "call_ended",
       participantId,
-      { endedAtMs, durationMs },
+      { endedAtMs, durationMs, reason },
       clientClockMs,
     );
-    this.broadcast({ type: "call_ended", endedAtMs, durationMs });
+    this.broadcast({ type: "call_ended", endedAtMs, durationMs, reason });
+  }
+
+  private async failCall(
+    meta: RoomMetaRow,
+    reason: string,
+    participantId: string | null,
+  ): Promise<void> {
+    if (meta.state === "ended" || meta.state === "failed") return;
+    const latest = this.requireMeta();
+    if (latest.state === "ended" || latest.state === "failed") return;
+    const transition = this.ctx.storage.sql.exec<{ call_id: string }>(
+      `UPDATE room_meta SET state = 'failed'
+       WHERE singleton = 1 AND state NOT IN ('ended', 'failed')
+       RETURNING call_id`,
+    ).toArray();
+    if (transition.length === 0) return;
+
+    await this.ctx.storage.deleteAlarm();
+    const failedAt = new Date().toISOString();
+    await this.env.DB.prepare(
+      `UPDATE calls SET state = 'failed', failed_reason = ?, updated_at = ?
+       WHERE id = ? AND state NOT IN ('ended', 'failed')`,
+    ).bind(reason, failedAt, latest.call_id).run();
+    await this.recordEvent("call_failed", participantId, { reason, failedAt });
+    this.broadcast({ type: "call_failed", reason, failedAt });
   }
 
   private async recordEvent(

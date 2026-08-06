@@ -1,6 +1,11 @@
 /// <reference types="@cloudflare/vitest-pool-workers/types" />
 import { env, exports } from "cloudflare:workers";
-import { applyD1Migrations, evictDurableObject } from "cloudflare:test";
+import {
+  applyD1Migrations,
+  evictDurableObject,
+  runDurableObjectAlarm,
+  runInDurableObject,
+} from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, inject, it } from "vitest";
 import { ExperimentConfigSchema, ExperimentScheduleSchema } from "@ace-omni/domain";
 import { canonicalJson, hashPassword, hmacVerify, sha256Hex } from "../src/security";
@@ -53,6 +58,21 @@ const config = ExperimentConfigSchema.parse({
   },
 });
 
+const noArtifactConfig = ExperimentConfigSchema.parse({
+  ...config,
+  timing: { ...config.timing, callTimeoutSec: 5, scheduleLeadMs: 0 },
+  evidencePolicy: {
+    ...config.evidencePolicy,
+    microphoneAudio: false,
+    receivedAudio: false,
+    manipulatedAudio: false,
+    localVideo: false,
+    remoteVideo: false,
+    rawCaptions: false,
+    displayedCaptions: false,
+  },
+});
+
 let passwordHash = "";
 
 beforeAll(async () => {
@@ -62,7 +82,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await applyD1Migrations(env.DB, inject("migrations"));
   await env.DB.prepare(
-    `INSERT INTO users (id, email, display_name, role, password_hash, created_at)
+    `INSERT OR IGNORE INTO users (id, email, display_name, role, password_hash, created_at)
      VALUES (?, 'owner@omni.test', 'Owner Researcher', 'researcher', ?, ?)`,
   ).bind(OWNER_ID, passwordHash, new Date().toISOString()).run();
 });
@@ -111,11 +131,18 @@ function researcherHeaders(session: Session): HeadersInit {
   return { Cookie: session.cookie, "X-CSRF-Token": session.csrf };
 }
 
-async function createExperiment(session: Session): Promise<string> {
+async function createExperiment(
+  session: Session,
+  experimentConfig: typeof config = config,
+): Promise<string> {
   const response = await fetchApi("/api/experiments", {
     method: "POST",
     headers: researcherHeaders(session),
-    json: { name: "Room experiment", alias: `room-${crypto.randomUUID()}`, config },
+    json: {
+      name: "Room experiment",
+      alias: `room-${crypto.randomUUID()}`,
+      config: experimentConfig,
+    },
   });
   if (response.status !== 201) throw new Error(`Experiment creation failed: ${response.status}`);
   return (await response.json<{ id: string }>()).id;
@@ -154,6 +181,7 @@ async function redeemCall(session: Session, callId: string): Promise<Participant
 interface SocketHarness {
   socket: WebSocket;
   credential: string;
+  closed: Promise<{ code: number; reason: string }>;
   next(type: string): Promise<Record<string, unknown>>;
   close(): Promise<void>;
 }
@@ -235,11 +263,17 @@ async function connect(callId: string, participant: ParticipantAccess): Promise<
       messages.push(message);
     }
   });
+  const closed = new Promise<{ code: number; reason: string }>((resolve) => {
+    socket.addEventListener("close", (event) => {
+      resolve({ code: event.code, reason: event.reason });
+    }, { once: true });
+  });
   socket.accept();
 
   return {
     socket,
     credential,
+    closed,
     next(type: string) {
       const existingIndex = messages.findIndex((message) => message.type === type);
       if (existingIndex >= 0) return Promise.resolve(messages.splice(existingIndex, 1)[0]!);
@@ -266,7 +300,220 @@ async function connect(callId: string, participant: ParticipantAccess): Promise<
   };
 }
 
+async function expectTerminalStateAccountedFor(
+  session: Session,
+  callId: string,
+): Promise<{ state: "ended" | "failed"; failedReason: string | null; manifest?: unknown }> {
+  const call = await env.DB.prepare(
+    "SELECT state, failed_reason FROM calls WHERE id = ?",
+  ).bind(callId).first<{ state: string; failed_reason: string | null }>();
+  expect(["ended", "failed"]).toContain(call?.state);
+
+  const finalize = await fetchApi(`/api/calls/${callId}/finalize`, {
+    method: "POST",
+    headers: researcherHeaders(session),
+  });
+  if (call?.state === "failed") {
+    expect(call.failed_reason).toBeTruthy();
+    expect(finalize.status).toBe(422);
+    await expect(finalize.json()).resolves.toMatchObject({
+      code: "CALL_FAILED",
+      failedReason: call.failed_reason,
+    });
+    return { state: "failed", failedReason: call.failed_reason };
+  }
+
+  expect(finalize.status).toBe(201);
+  const finalized = await finalize.json<{ manifest: unknown }>();
+  return { state: "ended", failedReason: null, manifest: finalized.manifest };
+}
+
 describe("authoritative call Durable Object", () => {
+  it("keeps a replacement reconnect contiguous in D1 and the finalized manifest", async () => {
+    const session = await login();
+    const experimentId = await createExperiment(session, noArtifactConfig);
+    const callId = await createCall(session, experimentId);
+    const participants = await redeemCall(session, callId);
+    const caller = participants.find((participant) => participant.role === "caller")!;
+    const callee = participants.find((participant) => participant.role === "callee")!;
+
+    const originalCallerSocket = await connect(callId, caller);
+    await originalCallerSocket.next("welcome");
+    const calleeSocket = await connect(callId, callee);
+    await calleeSocket.next("welcome");
+    await originalCallerSocket.next("schedule_issued");
+
+    const replacementCallerSocket = await connect(callId, caller);
+    await replacementCallerSocket.next("welcome");
+    await expect(originalCallerSocket.closed).resolves.toMatchObject({ code: 4001 });
+
+    const room = env.CALL_ROOM.getByName(callId);
+    await room.getStatus();
+    const presenceAfterReplacement = await env.DB.prepare(
+      "SELECT left_at FROM call_participants WHERE call_id = ? AND id = ?",
+    ).bind(callId, caller.participantId).first<{ left_at: string | null }>();
+    const staleDepartureCount = await env.DB.prepare(
+      `SELECT COUNT(*) AS count FROM call_events
+       WHERE call_id = ? AND participant_id = ? AND type = 'participant_left'`,
+    ).bind(callId, caller.participantId).first<{ count: number }>();
+
+    expect(presenceAfterReplacement?.left_at).toBeNull();
+    expect(staleDepartureCount?.count).toBe(0);
+    await expect(room.getStatus()).resolves.toMatchObject({
+      connectedParticipantIds: expect.arrayContaining([caller.participantId, callee.participantId]),
+    });
+
+    replacementCallerSocket.socket.send(JSON.stringify({
+      type: "end_call",
+      clientClockMs: Date.now(),
+    }));
+    await calleeSocket.next("call_ended");
+    const finalize = await fetchApi(`/api/calls/${callId}/finalize`, {
+      method: "POST",
+      headers: researcherHeaders(session),
+    });
+    expect(finalize.status).toBe(201);
+    const finalized = await finalize.json<{
+      manifest: {
+        participants: Array<{ id: string; joinedAt: string | null; leftAt: string | null }>;
+        events: Array<{ type: string; participantId: string | null }>;
+      };
+    }>();
+    expect(finalized.manifest.participants.find((item) => item.id === caller.participantId)).toMatchObject({
+      joinedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+      leftAt: null,
+    });
+    expect(finalized.manifest.events.filter(
+      (event) => event.type === "participant_left" && event.participantId === caller.participantId,
+    )).toHaveLength(0);
+
+    await Promise.all([replacementCallerSocket.close(), calleeSocket.close()]);
+    await room.getStatus();
+    const persistedEventCount = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM call_events WHERE call_id = ?",
+    ).bind(callId).first<{ count: number }>();
+    expect(persistedEventCount?.count).toBe(finalized.manifest.events.length);
+  });
+
+  it("records one presence departure for a genuine disconnect", async () => {
+    const session = await login();
+    const experimentId = await createExperiment(session, noArtifactConfig);
+    const callId = await createCall(session, experimentId);
+    const participants = await redeemCall(session, callId);
+    const caller = participants.find((participant) => participant.role === "caller")!;
+    const callee = participants.find((participant) => participant.role === "callee")!;
+    const callerSocket = await connect(callId, caller);
+    await callerSocket.next("welcome");
+    const calleeSocket = await connect(callId, callee);
+    await calleeSocket.next("welcome");
+    await callerSocket.next("schedule_issued");
+
+    const room = env.CALL_ROOM.getByName(callId);
+    await callerSocket.close();
+    await room.getStatus();
+    const presenceAfterDisconnect = await env.DB.prepare(
+      "SELECT left_at FROM call_participants WHERE call_id = ? AND id = ?",
+    ).bind(callId, caller.participantId).first<{ left_at: string | null }>();
+    const genuineDepartureCount = await env.DB.prepare(
+      `SELECT COUNT(*) AS count FROM call_events
+       WHERE call_id = ? AND participant_id = ? AND type = 'participant_left'`,
+    ).bind(callId, caller.participantId).first<{ count: number }>();
+
+    expect(presenceAfterDisconnect?.left_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(genuineDepartureCount?.count).toBe(1);
+    calleeSocket.socket.send(JSON.stringify({ type: "end_call", clientClockMs: Date.now() }));
+    await calleeSocket.next("call_ended");
+    await calleeSocket.close();
+  });
+
+  it("accounts for pre-start termination as an explicit failed terminal state", async () => {
+    const session = await login();
+    const experimentId = await createExperiment(session, noArtifactConfig);
+    const callId = await createCall(session, experimentId);
+    const participants = await redeemCall(session, callId);
+    const caller = participants.find((participant) => participant.role === "caller")!;
+    const callerSocket = await connect(callId, caller);
+    await callerSocket.next("welcome");
+
+    callerSocket.socket.send(JSON.stringify({ type: "end_call", clientClockMs: Date.now() }));
+    const room = env.CALL_ROOM.getByName(callId);
+    await room.getStatus();
+
+    await expect(expectTerminalStateAccountedFor(session, callId)).resolves.toMatchObject({
+      state: "failed",
+      failedReason: "end_call_before_start",
+    });
+    const lifecycle = await env.DB.prepare(
+      "SELECT state, started_at, ended_at, schedule_json, failed_reason FROM calls WHERE id = ?",
+    ).bind(callId).first<{
+      state: string;
+      started_at: string | null;
+      ended_at: string | null;
+      schedule_json: string | null;
+      failed_reason: string | null;
+    }>();
+    expect(lifecycle).toMatchObject({
+      state: "failed",
+      started_at: null,
+      ended_at: null,
+      schedule_json: null,
+      failed_reason: "end_call_before_start",
+    });
+    const failureEvent = await env.DB.prepare(
+      `SELECT participant_id, payload_json FROM call_events
+       WHERE call_id = ? AND type = 'call_failed'`,
+    ).bind(callId).first<{ participant_id: string | null; payload_json: string }>();
+    expect(failureEvent?.participant_id).toBe(caller.participantId);
+    expect(JSON.parse(failureEvent!.payload_json)).toMatchObject({ reason: "end_call_before_start" });
+    const inspection = await fetchApi(`/api/calls/${callId}`, {
+      headers: { Cookie: session.cookie },
+    });
+    expect(inspection.status).toBe(200);
+    await expect(inspection.json()).resolves.toMatchObject({
+      call: { state: "failed", failedReason: "end_call_before_start" },
+      events: expect.arrayContaining([expect.objectContaining({ type: "call_failed" })]),
+    });
+    await callerSocket.close();
+  });
+
+  it("accounts for an abandoned active call by ending it at the configured alarm", async () => {
+    const session = await login();
+    const experimentId = await createExperiment(session, noArtifactConfig);
+    const callId = await createCall(session, experimentId);
+    const participants = await redeemCall(session, callId);
+    const caller = participants.find((participant) => participant.role === "caller")!;
+    const callee = participants.find((participant) => participant.role === "callee")!;
+    const callerSocket = await connect(callId, caller);
+    await callerSocket.next("welcome");
+    const calleeSocket = await connect(callId, callee);
+    await calleeSocket.next("welcome");
+    await callerSocket.next("schedule_issued");
+
+    const room = env.CALL_ROOM.getByName(callId);
+    const status = await room.getStatus();
+    const alarmAt = await runInDurableObject(room, (_instance, state) => state.storage.getAlarm());
+    expect(alarmAt).toBe(status.callClockStartMs! + noArtifactConfig.timing.callTimeoutSec * 1_000);
+
+    await Promise.all([callerSocket.close(), calleeSocket.close()]);
+    expect(await runDurableObjectAlarm(room)).toBe(true);
+    await expect(expectTerminalStateAccountedFor(session, callId)).resolves.toMatchObject({
+      state: "ended",
+      failedReason: null,
+    });
+    const timeoutEvent = await env.DB.prepare(
+      `SELECT participant_id, payload_json FROM call_events
+       WHERE call_id = ? AND type = 'call_ended'`,
+    ).bind(callId).first<{ participant_id: string | null; payload_json: string }>();
+    expect(timeoutEvent?.participant_id).toBeNull();
+    expect(JSON.parse(timeoutEvent!.payload_json)).toMatchObject({ reason: "call_timeout" });
+    expect(await runDurableObjectAlarm(room)).toBe(false);
+    await runInDurableObject(room, (instance) => instance.alarm());
+    const timeoutEndCount = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM call_events WHERE call_id = ? AND type = 'call_ended'",
+    ).bind(callId).first<{ count: number }>();
+    expect(timeoutEndCount?.count).toBe(1);
+  });
+
   it("survives hibernation and isolates signed signaling, schedules, and identity", async () => {
     const session = await login();
     const experimentId = await createExperiment(session);
@@ -301,12 +548,20 @@ describe("authoritative call Durable Object", () => {
       scheduleRevision: 1,
       connectedParticipantIds: expect.arrayContaining([caller.participantId, callee.participantId]),
     });
+    const alarmBeforeEviction = await runInDurableObject(
+      room,
+      (_instance, state) => state.storage.getAlarm(),
+    );
     await evictDurableObject(room);
     expect(await room.getStatus()).toMatchObject({
       state: "active",
       scheduleRevision: 1,
       connectedParticipantIds: expect.arrayContaining([caller.participantId, callee.participantId]),
     });
+    await expect(runInDurableObject(
+      room,
+      (_instance, state) => state.storage.getAlarm(),
+    )).resolves.toBe(alarmBeforeEviction);
 
     callerSocket.socket.send(JSON.stringify({
       type: "offer",
@@ -354,6 +609,7 @@ describe("authoritative call Durable Object", () => {
 
     callerSocket.socket.send(JSON.stringify({ type: "end_call", clientClockMs: Date.now() }));
     await calleeSocket.next("call_ended");
+    expect(await runDurableObjectAlarm(room)).toBe(false);
     const lifecycle = await env.DB.prepare(
       "SELECT state, schedule_json, duration_ms FROM calls WHERE id = ?",
     ).bind(callId).first<{ state: string; schedule_json: string; duration_ms: number }>();

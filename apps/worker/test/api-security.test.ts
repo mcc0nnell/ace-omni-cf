@@ -2,8 +2,8 @@
 import { env, exports } from "cloudflare:workers";
 import { applyD1Migrations } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, inject, it } from "vitest";
-import { ExperimentConfigSchema } from "@ace-omni/domain";
-import { hashPassword } from "../src/security";
+import { ExperimentConfigSchema, ParticipantAccessClaimsSchema } from "@ace-omni/domain";
+import { hashPassword, verifyClaims } from "../src/security";
 
 const ORIGIN = "http://localhost:8787";
 const PASSWORD = "correct horse battery staple";
@@ -136,11 +136,11 @@ async function createExperimentAndCall(session: Session, alias = `secure-${crypt
   return { ...experiment, ...call };
 }
 
-async function issueInvitations(session: Session, callId: string) {
+async function issueInvitations(session: Session, callId: string, ttlMinutes = 5) {
   const response = await fetchApi(`/api/calls/${callId}/invitations`, {
     method: "POST",
     headers: sessionHeaders(session),
-    json: { ttlMinutes: 5 },
+    json: { ttlMinutes },
   });
   expect(response.status).toBe(201);
   return response.json<{
@@ -149,6 +149,7 @@ async function issueInvitations(session: Session, callId: string) {
       token: string;
       joinUrl: string;
       role: "caller" | "callee";
+      expiresAt: string;
     }>;
   }>();
 }
@@ -238,6 +239,42 @@ describe("research API security boundaries", () => {
       json: { token: callee.token },
     });
     expect(expired.status).toBe(410);
+  });
+
+  it("uses invitation expiry only as the redemption gate, then starts a separate participant TTL", async () => {
+    const owner = await login("owner@omni.test");
+    const created = await createExperimentAndCall(owner);
+    const { invitations } = await issueInvitations(owner, created.callId, 1);
+    const invitation = invitations.find((item) => item.role === "caller")!;
+    const beforeRedemption = Date.now();
+    const redeem = await fetchApi("/api/invitations/redeem", {
+      method: "POST",
+      json: { token: invitation.token },
+    });
+    const afterRedemption = Date.now();
+
+    expect(redeem.status).toBe(200);
+    const participant = await redeem.json<{
+      participantToken: string;
+      participantId: string;
+      expiresAt: string;
+    }>();
+    const claims = await verifyClaims(
+      env.TOKEN_SIGNING_SECRET,
+      participant.participantToken,
+      ParticipantAccessClaimsSchema,
+    );
+    const participantExpiresAt = new Date(participant.expiresAt).getTime();
+    const fourHoursMs = 4 * 60 * 60 * 1_000;
+
+    expect(claims?.expiresAt).toBe(participantExpiresAt);
+    expect(participantExpiresAt).toBeGreaterThanOrEqual(beforeRedemption + fourHoursMs);
+    expect(participantExpiresAt).toBeLessThanOrEqual(afterRedemption + fourHoursMs);
+    expect(participantExpiresAt).toBeGreaterThan(new Date(invitation.expiresAt).getTime());
+    const storedSession = await env.DB.prepare(
+      "SELECT expires_at FROM participant_sessions WHERE participant_id = ?",
+    ).bind(participant.participantId).first<{ expires_at: string }>();
+    expect(storedSession?.expires_at).toBe(participant.expiresAt);
   });
 
   it("binds participant identity and credentials to exactly one call", async () => {
