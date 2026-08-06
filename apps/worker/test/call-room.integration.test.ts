@@ -62,7 +62,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await applyD1Migrations(env.DB, inject("migrations"));
   await env.DB.prepare(
-    `INSERT INTO users (id, email, display_name, role, password_hash, created_at)
+    `INSERT OR IGNORE INTO users (id, email, display_name, role, password_hash, created_at)
      VALUES (?, 'owner@omni.test', 'Owner Researcher', 'researcher', ?, ?)`,
   ).bind(OWNER_ID, passwordHash, new Date().toISOString()).run();
 });
@@ -154,6 +154,7 @@ async function redeemCall(session: Session, callId: string): Promise<Participant
 interface SocketHarness {
   socket: WebSocket;
   credential: string;
+  closed: Promise<{ code: number; reason: string }>;
   next(type: string): Promise<Record<string, unknown>>;
   close(): Promise<void>;
 }
@@ -235,11 +236,17 @@ async function connect(callId: string, participant: ParticipantAccess): Promise<
       messages.push(message);
     }
   });
+  const closed = new Promise<{ code: number; reason: string }>((resolve) => {
+    socket.addEventListener("close", (event) => {
+      resolve({ code: event.code, reason: event.reason });
+    }, { once: true });
+  });
   socket.accept();
 
   return {
     socket,
     credential,
+    closed,
     next(type: string) {
       const existingIndex = messages.findIndex((message) => message.type === type);
       if (existingIndex >= 0) return Promise.resolve(messages.splice(existingIndex, 1)[0]!);
@@ -267,6 +274,55 @@ async function connect(callId: string, participant: ParticipantAccess): Promise<
 }
 
 describe("authoritative call Durable Object", () => {
+  it("ignores a replaced connection close but records a genuine disconnect", async () => {
+    const session = await login();
+    const experimentId = await createExperiment(session);
+    const callId = await createCall(session, experimentId);
+    const participants = await redeemCall(session, callId);
+    const caller = participants.find((participant) => participant.role === "caller")!;
+    const callee = participants.find((participant) => participant.role === "callee")!;
+
+    const originalCallerSocket = await connect(callId, caller);
+    await originalCallerSocket.next("welcome");
+    const calleeSocket = await connect(callId, callee);
+    await calleeSocket.next("welcome");
+    await originalCallerSocket.next("schedule_issued");
+
+    const replacementCallerSocket = await connect(callId, caller);
+    await replacementCallerSocket.next("welcome");
+    await expect(originalCallerSocket.closed).resolves.toMatchObject({ code: 4001 });
+
+    const room = env.CALL_ROOM.getByName(callId);
+    await room.getStatus();
+    const presenceAfterReplacement = await env.DB.prepare(
+      "SELECT left_at FROM call_participants WHERE call_id = ? AND id = ?",
+    ).bind(callId, caller.participantId).first<{ left_at: string | null }>();
+    const staleDepartureCount = await env.DB.prepare(
+      `SELECT COUNT(*) AS count FROM call_events
+       WHERE call_id = ? AND participant_id = ? AND type = 'participant_left'`,
+    ).bind(callId, caller.participantId).first<{ count: number }>();
+
+    expect(presenceAfterReplacement?.left_at).toBeNull();
+    expect(staleDepartureCount?.count).toBe(0);
+    await expect(room.getStatus()).resolves.toMatchObject({
+      connectedParticipantIds: expect.arrayContaining([caller.participantId, callee.participantId]),
+    });
+
+    await replacementCallerSocket.close();
+    await room.getStatus();
+    const presenceAfterDisconnect = await env.DB.prepare(
+      "SELECT left_at FROM call_participants WHERE call_id = ? AND id = ?",
+    ).bind(callId, caller.participantId).first<{ left_at: string | null }>();
+    const genuineDepartureCount = await env.DB.prepare(
+      `SELECT COUNT(*) AS count FROM call_events
+       WHERE call_id = ? AND participant_id = ? AND type = 'participant_left'`,
+    ).bind(callId, caller.participantId).first<{ count: number }>();
+
+    expect(presenceAfterDisconnect?.left_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(genuineDepartureCount?.count).toBe(1);
+    await calleeSocket.close();
+  });
+
   it("survives hibernation and isolates signed signaling, schedules, and identity", async () => {
     const session = await login();
     const experimentId = await createExperiment(session);

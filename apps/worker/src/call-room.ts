@@ -509,13 +509,16 @@ export class CallRoom extends DurableObject<WorkerEnv> {
     const attachment = this.attachment(socket);
     if (!attachment) return;
     const now = Date.now();
-    this.ctx.storage.sql.exec(
+    const authoritativeClose = this.ctx.storage.sql.exec<{ participant_id: string }>(
       `UPDATE participants SET left_at_ms = ?
-       WHERE participant_id = ? AND connection_id = ?`,
+       WHERE participant_id = ? AND connection_id = ? AND left_at_ms IS NULL
+       RETURNING participant_id`,
       now,
       attachment.participantId,
       attachment.connectionId,
-    );
+    ).toArray();
+    if (authoritativeClose.length === 0) return;
+
     await this.env.DB.prepare(
       `UPDATE call_participants SET left_at = ?
        WHERE call_id = ? AND id = ?`,
