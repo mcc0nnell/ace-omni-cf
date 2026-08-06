@@ -2,7 +2,7 @@
 
 ACE Omni is a controlled Telecommunications Relay Services research laboratory. It is not a generic video-chat application. Researchers save immutable communications conditions, issue call-bound participant invitations, run synchronized calls, apply deterministic caption and audio conditions, and collect checksum-linked evidence.
 
-This repository resurrects the original [MITRE ACE Omni](https://github.com/mitrefccace/ace-omni) architecture on React, Vite, Hono, Cloudflare Workers, D1, Durable Objects, R2, WebRTC, and AudioWorklets.
+This repository resurrects the original [ACE Omni](https://github.com/mitrefccace/ace-omni) architecture on React, Vite, Hono, Cloudflare Workers, D1, Durable Objects, R2, WebRTC, and AudioWorklets.
 
 ## What executes today
 
@@ -144,9 +144,9 @@ No production resources are created by these commands. `npm run build` performs 
 
 The original ACE Omni notice is preserved in [LICENSE](LICENSE), and the derivative-work record is separated in [NOTICE](NOTICE). The original notice states that the software/technical data was produced for the U.S. Government under Contract Number 75FCMC18D0047 and is subject to FAR 52.227-14.
 
-- **Original MITRE material:** ©2024 The MITRE Corporation. Approved for Public Release; Distribution Unlimited 24-0463.
+- **Original material:** Approved for Public Release; Distribution Unlimited 24-0463.
 - **Cloudflare-native modifications:** 2026, Robert McConnell ([@mcc0nnell](https://github.com/mcc0nnell)), as identified by this repository's Git history.
 
-The 24-0463 identifier is reproduced only as part of the original MITRE notice. This repository does not represent it as MITRE review or public-release approval of the later Cloudflare-native modifications. This is not an official MITRE or Federal Communications Commission publication, and no endorsement by MITRE, the FCC, or the U.S. Government is implied.
+The 24-0463 identifier is reproduced only as part of the original notice. This repository does not represent it as review or public-release approval of the later Cloudflare-native modifications. This is not an official Federal Communications Commission publication, and no endorsement by the FCC or the U.S. Government is implied.
 
 These provenance statements distinguish the modifications; they do not amend or relicense the original material.
