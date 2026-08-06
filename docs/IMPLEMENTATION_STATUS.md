@@ -13,11 +13,13 @@ Status is evidence-based: “tested” means the path has executed in automation
 | Invitation signature, expiry, race, and reuse | Tested | concurrent redemption, modified token, expiry tests |
 | Participant identity and room isolation | Tested | modified access token, cross-call room credential, spoofed message, cross-room signal target |
 | Reconnect presence integrity | Tested | replaced connection close is suppressed; genuine disconnect records D1 presence and one immutable event |
+| Reconnect delivery integrity | Tested | fresh credential per attempt, snapshot-before-replay, tab-restored outbox, lost-ACK replay, SQLite deduplication, monotonic sequence guard |
 | Durable Object hibernation and call timeout | Tested | live WebSockets, authoritative state, and the configured alarm survive eviction; timeout finalizes once |
 | Terminal call-state invariant | Tested | every exercised terminal state either finalizes a manifest or carries an explicit `failed_reason` |
 | Experiment-derived signed schedule | Tested | deterministic engine, runtime identity mapping, HMAC verification |
 | WebRTC audio/video | Tested | two independent Chromium contexts with fake devices |
 | Mock captions | Tested | both contexts exchange and render synthetic captions |
+| Caption appearance and semantic tokens | Tested at unit/build level | pinned size/contrast/attribution are rendered; token export drift, critical contrast pairs, forced colors, reduced motion, and touch target are asserted |
 | Caption and audio schedule execution | Tested | exact schedule offsets persisted; AudioWorklet frame mapping unit tests |
 | MediaRecorder → authorized R2 | Tested | two browser artifacts plus Worker R2 integration test |
 | Evidence tamper rejection | Tested | wrong upload digest and post-upload R2 overwrite |

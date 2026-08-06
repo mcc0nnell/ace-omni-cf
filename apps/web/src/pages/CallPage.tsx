@@ -14,6 +14,11 @@ import {
   type AudioManipulationGraph,
 } from "@ace-omni/media";
 import { api, type ParticipantSession } from "../lib/api";
+import {
+  ReliableRoomClient,
+  type DurableRoomMessage,
+  type RoomConnectionStatus,
+} from "../lib/reliable-room-client";
 
 interface PublicParticipant {
   id: string;
@@ -23,6 +28,7 @@ interface PublicParticipant {
 
 interface Caption {
   id: string;
+  fromId: string;
   text: string;
   isFinal: boolean;
   atMs: number;
@@ -65,6 +71,8 @@ export default function CallPage({ callId }: { callId: string }) {
   const [ended, setEnded] = useState(false);
   const [evidenceProgress, setEvidenceProgress] = useState("Not started");
   const [mediaConnected, setMediaConnected] = useState(false);
+  const [roomConnected, setRoomConnected] = useState(false);
+  const [pendingRoomEvents, setPendingRoomEvents] = useState(0);
   const [peerState, setPeerState] = useState({
     connection: "new",
     ice: "new",
@@ -73,7 +81,7 @@ export default function CallPage({ callId }: { callId: string }) {
     candidates: 0,
   });
 
-  const wsRef = useRef<WebSocket | null>(null);
+  const roomClientRef = useRef<ReliableRoomClient | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const peerIdRef = useRef<string | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -89,19 +97,31 @@ export default function CallPage({ callId }: { callId: string }) {
   const rawCaptionLogRef = useRef<Array<Record<string, unknown>>>([]);
   const displayedCaptionLogRef = useRef<Array<Record<string, unknown>>>([]);
   const timersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  const scheduledManipulationsRef = useRef(new Set<string>());
+  const mockCaptionsStartedRef = useRef(false);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const manipulatedRemoteAudioRef = useRef<HTMLAudioElement>(null);
 
-  const send = useCallback((message: unknown) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(message));
+  const send = useCallback((message: Record<string, unknown>) => {
+    return roomClientRef.current?.sendEphemeral(message) ?? false;
+  }, []);
+
+  const sendDurable = useCallback((message: DurableRoomMessage, clientEventId: string) => {
+    try {
+      const client = roomClientRef.current;
+      if (!client) throw new Error("authenticated room transport is not ready");
+      client.sendDurable(message, clientEventId);
+    } catch (reason) {
+      setStatus(`Unable to preserve research event: ${reason instanceof Error ? reason.message : String(reason)}`);
     }
   }, []);
 
   useEffect(() => {
     if (!session || !callId || session.callId !== callId) return;
     let cancelled = false;
+    scheduledManipulationsRef.current.clear();
+    mockCaptionsStartedRef.current = false;
 
     const ownConfig = session.config.participants.find(
       (participant) => participant.id === session.participantConfigId,
@@ -118,11 +138,11 @@ export default function CallPage({ callId }: { callId: string }) {
 
     const registerExecution = (graph: AudioManipulationGraph) => graph.onExecution((event) => {
       if (event.kind !== "executed") return;
-      send({
+      sendDurable({
         type: "manipulation_executed",
         manipulationId: event.id,
         clientClockMs: event.actualTimeMs,
-      });
+      }, `execute:${event.id}`);
     });
 
     const startRecorder = (
@@ -146,7 +166,10 @@ export default function CallPage({ callId }: { callId: string }) {
         capturedAt: new Date().toISOString(),
         recording,
       });
-      send({ type: "recording_started", artifactType, clientClockMs: Date.now() });
+      sendDurable(
+        { type: "recording_started", artifactType, clientClockMs: Date.now() },
+        `recording:${artifactType}:started`,
+      );
     };
 
     const startLocalEvidence = () => {
@@ -172,11 +195,14 @@ export default function CallPage({ callId }: { callId: string }) {
         (manipulation) => manipulation.targetParticipantId === session.participantId,
       );
       for (const manipulation of assigned) {
-        send({
+        const scheduleKey = `${signedSchedule.scheduleRevision}:${manipulation.id}`;
+        if (scheduledManipulationsRef.current.has(scheduleKey)) continue;
+        scheduledManipulationsRef.current.add(scheduleKey);
+        sendDurable({
           type: "manipulation_ack",
           manipulationId: manipulation.id,
           clientClockMs: Date.now(),
-        });
+        }, `ack:${scheduleKey}`);
         const graph = manipulation.targetStream === "incoming"
           ? incomingGraphRef.current
           : outgoingGraphRef.current;
@@ -191,11 +217,11 @@ export default function CallPage({ callId }: { callId: string }) {
           );
           addTimer(setTimeout(() => {
             setStatus(`Caption condition active: ${manipulation.type}`);
-            send({
+            sendDurable({
               type: "manipulation_executed",
               manipulationId: manipulation.id,
               clientClockMs: Date.now(),
-            });
+            }, `execute:${manipulation.id}`);
             addTimer(setTimeout(() => {
               if (activeRef.current) setStatus("Call active");
             }, manipulation.durationMs));
@@ -238,28 +264,48 @@ export default function CallPage({ callId }: { callId: string }) {
       const delay = ownConfig.captions.baseDelayMs + scheduledDelay;
       addTimer(setTimeout(() => {
         const displayedAt = Date.now();
-        const caption = { id: message.utteranceId, text, isFinal: message.isFinal, atMs: displayedAt };
+        const caption = {
+          id: message.utteranceId,
+          fromId: message.fromId,
+          text,
+          isFinal: message.isFinal,
+          atMs: displayedAt,
+        };
         setCaptions((existing) => [...existing.slice(-39), caption]);
         displayedCaptionLogRef.current.push({ ...caption, fromId: message.fromId });
-        send({
+        sendDurable({
           type: "caption_displayed",
           utteranceId: message.utteranceId,
           text,
           isFinal: message.isFinal,
           clientClockMs: displayedAt,
-        });
+        }, `caption:${message.utteranceId}:displayed`);
       }, delay));
     };
 
     const startMockCaptions = (callClockStartMs: number) => {
+      if (mockCaptionsStartedRef.current) return;
+      mockCaptionsStartedRef.current = true;
       const utterances = session.config.mockAsr.utterances ?? [
         "Synthetic ACE Omni caption stream is active.",
       ];
+      const sequenceKey = `omni_caption_sequence:${securedCallId}:${participantSession.participantId}`;
       let index = 0;
+      try {
+        const restored = Number.parseInt(localStorage.getItem(sequenceKey) ?? "0", 10);
+        if (Number.isSafeInteger(restored) && restored >= 0) index = restored;
+      } catch {
+        // Continue with an in-memory sequence; the transport reports storage failures separately.
+      }
       const emit = () => {
         if (!activeRef.current) return;
         const text = utterances[index % utterances.length]!;
         index += 1;
+        try {
+          localStorage.setItem(sequenceKey, String(index));
+        } catch {
+          // Continue the live synthetic stream; transport persistence is checked separately.
+        }
         const utteranceId = `${session.participantId}:${index}`;
         const clientClockMs = Date.now();
         rawCaptionLogRef.current.push({
@@ -306,7 +352,10 @@ export default function CallPage({ callId }: { callId: string }) {
       setEvidenceProgress("Stopping recorders…");
       const entries = [...recordingsRef.current.values()];
       for (const entry of entries) {
-        send({ type: "recording_stopped", artifactType: entry.artifactType, clientClockMs: Date.now() });
+        sendDurable(
+          { type: "recording_stopped", artifactType: entry.artifactType, clientClockMs: Date.now() },
+          `recording:${entry.artifactType}:stopped`,
+        );
       }
       try {
         const artifacts: Array<{
@@ -435,57 +484,82 @@ export default function CallPage({ callId }: { callId: string }) {
           startRemoteEvidence();
         };
 
-        const { credential } = await api.createRoomCredential(securedCallId, participantSession.participantToken);
-        const webSocketProtocol = location.protocol === "https:" ? "wss" : "ws";
-        const socket = new WebSocket(
-          `${webSocketProtocol}://${location.host}/api/calls/${securedCallId}/ws`,
-          ["ace-omni.v1", `credential.${credential}`],
-        );
-        wsRef.current = socket;
-        socket.addEventListener("open", () => setStatus("Authorized room connected; waiting for peer…"));
-        socket.addEventListener("close", () => {
-          if (activeRef.current) setStatus("Room connection closed");
-        });
-        socket.addEventListener("error", () => setStatus("Authenticated room connection failed"));
-        socket.addEventListener("message", (event) => {
+        let negotiating = false;
+        const negotiateAsCaller = async (iceRestart = false) => {
+          if (
+            participantSession.role !== "caller" ||
+            !peerIdRef.current ||
+            negotiating ||
+            peer.signalingState !== "stable"
+          ) return;
+          negotiating = true;
+          try {
+            const offer = await peer.createOffer(
+              iceRestart && peer.currentRemoteDescription ? { iceRestart: true } : undefined,
+            );
+            await peer.setLocalDescription(offer);
+            send({ type: "offer", targetId: peerIdRef.current, sdp: offer });
+          } finally {
+            negotiating = false;
+          }
+        };
+
+        const activateCall = (startAt: number) => {
+          callClockStartRef.current = startAt;
+          activeRef.current = true;
+          startLocalEvidence();
+          startRemoteEvidence();
+          startMockCaptions(startAt);
+        };
+
+        const handleRoomMessage = (message: Record<string, any>) => {
+          if (cancelled) return;
           void (async () => {
-            const message = JSON.parse(String(event.data)) as Record<string, any>;
+            if (message.type === "event_ack") return;
             if (message.type === "welcome") {
               const participants = (message.participants ?? []) as PublicParticipant[];
               setPeers(participants);
-              peerIdRef.current = participants.find((participant) => participant.id !== participantSession.participantId)?.id ?? null;
-              if (typeof message.callClockStartMs === "number") callClockStartRef.current = message.callClockStartMs;
+              peerIdRef.current = participants.find(
+                (participant) => participant.id !== participantSession.participantId,
+              )?.id ?? null;
+              if (typeof message.callClockStartMs === "number") {
+                callClockStartRef.current = message.callClockStartMs;
+              }
               if (message.schedule) {
                 const parsed = ExperimentScheduleSchema.safeParse(message.schedule);
-                if (parsed.success) {
+                if (parsed.success && parsed.data.callId === securedCallId) {
                   scheduleRef.current = parsed.data;
                   setSchedule(parsed.data);
                   scheduleAssignedManipulations(parsed.data);
                 }
+              }
+              if (message.state === "active" && typeof message.callClockStartMs === "number") {
+                activateCall(message.callClockStartMs);
+                setStatus("Call active; authoritative room state resynchronized");
+                await negotiateAsCaller(Boolean(peer.currentRemoteDescription));
               }
               return;
             }
             if (message.type === "participant_joined" || message.type === "participant_left") {
               const participants = (message.participants ?? []) as PublicParticipant[];
               setPeers(participants);
-              peerIdRef.current = participants.find((participant) => participant.id !== participantSession.participantId)?.id ?? null;
+              peerIdRef.current = participants.find(
+                (participant) => participant.id !== participantSession.participantId,
+              )?.id ?? null;
+              if (message.type === "participant_joined" && activeRef.current) {
+                await negotiateAsCaller(Boolean(peer.currentRemoteDescription));
+              }
               return;
             }
             if (message.type === "call_started") {
               const startAt = Number(message.callClockStartMs);
-              callClockStartRef.current = startAt;
-              activeRef.current = true;
+              activateCall(startAt);
               setStatus("Call active; awaiting signed schedule");
-              startLocalEvidence();
-              startRemoteEvidence();
-              startMockCaptions(startAt);
               const participants = (message.participants ?? []) as PublicParticipant[];
-              peerIdRef.current = participants.find((participant) => participant.id !== participantSession.participantId)?.id ?? peerIdRef.current;
-              if (participantSession.role === "caller" && peerIdRef.current && !peer.currentRemoteDescription) {
-                const offer = await peer.createOffer();
-                await peer.setLocalDescription(offer);
-                send({ type: "offer", targetId: peerIdRef.current, sdp: offer });
-              }
+              peerIdRef.current = participants.find(
+                (participant) => participant.id !== participantSession.participantId,
+              )?.id ?? peerIdRef.current;
+              await negotiateAsCaller(false);
               return;
             }
             if (message.type === "schedule_issued") {
@@ -527,10 +601,12 @@ export default function CallPage({ callId }: { callId: string }) {
               });
               return;
             }
-            if (message.type === "call_ended") {
+            if (message.type === "call_ended" || message.type === "call_failed") {
               activeRef.current = false;
               setEnded(true);
-              setStatus("Call ended; securing configured evidence…");
+              setStatus(message.type === "call_failed"
+                ? `Call failed: ${String(message.reason)}`
+                : "Call ended; securing configured evidence…");
               await finishEvidence();
               return;
             }
@@ -538,7 +614,44 @@ export default function CallPage({ callId }: { callId: string }) {
               setStatus(`Room rejected message: ${String(message.code)}`);
             }
           })().catch((reason: Error) => setStatus(`Call protocol error: ${reason.message}`));
+        };
+
+        const reportTransportStatus = (transport: RoomConnectionStatus) => {
+          if (cancelled) return;
+          setRoomConnected(transport.phase === "connected");
+          setPendingRoomEvents(transport.pendingEvents);
+          if (transport.phase === "connecting") {
+            setStatus(`Authorizing room connection (attempt ${transport.attempt})…`);
+          } else if (transport.phase === "reconnecting") {
+            setStatus(
+              `Room interrupted; retrying in ${transport.retryInMs} ms · ${transport.pendingEvents} research events pending`,
+            );
+          } else if (transport.phase === "connected" && activeRef.current) {
+            setStatus((current) => (
+              current.startsWith("Room interrupted") || current.startsWith("Authorizing room")
+                ? "Call active"
+                : current
+            ));
+          } else if (transport.phase === "connected" && !activeRef.current) {
+            setStatus("Authorized room connected; waiting for peer…");
+          }
+        };
+
+        const webSocketProtocol = location.protocol === "https:" ? "wss" : "ws";
+        const roomClient = new ReliableRoomClient({
+          url: `${webSocketProtocol}://${location.host}/api/calls/${securedCallId}/ws`,
+          storageKey: `omni_room_transport:${securedCallId}:${participantSession.participantId}`,
+          issueCredential: async () => (
+            await api.createRoomCredential(securedCallId, participantSession.participantToken)
+          ).credential,
+          onMessage: handleRoomMessage,
+          onStatus: reportTransportStatus,
+          onError: (reason) => {
+            if (!cancelled) setStatus(`Authenticated room transport error: ${reason.message}`);
+          },
         });
+        roomClientRef.current = roomClient;
+        roomClient.start();
       } catch (reason) {
         setStatus(`Unable to start secured media: ${reason instanceof Error ? reason.message : String(reason)}`);
       }
@@ -549,17 +662,20 @@ export default function CallPage({ callId }: { callId: string }) {
       cancelled = true;
       activeRef.current = false;
       timersRef.current.forEach((timer) => clearTimeout(timer));
-      wsRef.current?.close();
+      roomClientRef.current?.stop();
+      roomClientRef.current = null;
       pcRef.current?.close();
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
       void outgoingGraphRef.current?.close();
       void incomingGraphRef.current?.close();
     };
-  }, [callId, send, session]);
+  }, [callId, send, sendDurable, session]);
 
   const endCall = useCallback(() => {
-    send({ type: "end_call", clientClockMs: Date.now() });
-    setStatus("Ending call through authoritative room…");
+    const delivered = send({ type: "end_call", clientClockMs: Date.now() });
+    setStatus(delivered
+      ? "Ending call through authoritative room…"
+      : "Room is reconnecting; end call is temporarily unavailable");
   }, [send]);
 
   if (!session) {
@@ -571,71 +687,98 @@ export default function CallPage({ callId }: { callId: string }) {
     );
   }
 
+  const ownParticipant = session.config.participants.find(
+    (participant) => participant.id === session.participantConfigId,
+  );
+  const captionAppearance = ownParticipant?.captions.appearance ?? {
+    fontSize: "medium" as const,
+    highContrast: false,
+    attribution: true,
+  };
+
   return (
-    <div style={{ maxWidth: 1120, margin: "0 auto" }}>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+    <div className="omni-call-shell">
+      <header className="omni-call-header">
         <div>
-          <h1 style={{ margin: 0, fontSize: "1.3rem" }}>{session.callName}</h1>
-          <p style={{ margin: "0.25rem 0 0", color: "var(--muted)" }}>
+          <h1 className="omni-call-title">{session.callName}</h1>
+          <p className="omni-call-meta">
             Server identity: {session.participantName} ({session.role}) · experiment v{session.experimentConfigVersion}
           </p>
-          <p data-testid="call-status" role="status" aria-live="polite" style={{ margin: "0.25rem 0 0" }}>{status}</p>
+          <p className="omni-call-status" data-testid="call-status" role="status" aria-live="polite">{status}</p>
+          <p className="omni-call-delivery" data-testid="room-delivery">
+            Research event delivery: {pendingRoomEvents === 0
+              ? "synchronized"
+              : `${pendingRoomEvents} awaiting authoritative acknowledgement`}
+          </p>
         </div>
         <button
+          className="omni-end-call"
           data-testid="end-call"
           type="button"
           onClick={endCall}
-          disabled={ended}
-          style={{ padding: "0.55rem 1rem", borderRadius: 6, border: 0, background: "var(--danger)", color: "white", fontWeight: 600 }}
+          disabled={ended || !roomConnected}
         >
           End call
         </button>
       </header>
 
-      <p data-testid="webrtc-state" style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
+      <p className="omni-webrtc-state" data-testid="webrtc-state">
         WebRTC: {peerState.connection} · ICE {peerState.ice}/{peerState.gathering} · signaling {peerState.signaling} · candidates {peerState.candidates}
       </p>
       <div
+        className="omni-media-grid"
         data-testid="media-state"
         data-connected={String(mediaConnected)}
         data-connection-state={peerState.connection}
         data-ice-state={peerState.ice}
         data-gathering-state={peerState.gathering}
         data-candidates={String(peerState.candidates)}
-        style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "1rem" }}
       >
-        <figure style={{ margin: 0 }}>
-          <video ref={localVideoRef} autoPlay playsInline muted aria-label="Synthetic local camera" style={{ width: "100%", aspectRatio: "4/3", background: "#000", borderRadius: 8 }} />
+        <figure className="omni-media-figure">
+          <video className="omni-media-video" ref={localVideoRef} autoPlay playsInline muted aria-label="Synthetic local camera" />
           <figcaption>You · {session.participantName}</figcaption>
         </figure>
-        <figure style={{ margin: 0 }}>
-          <video ref={remoteVideoRef} autoPlay playsInline aria-label="Remote participant video" style={{ width: "100%", aspectRatio: "4/3", background: "#000", borderRadius: 8 }} />
+        <figure className="omni-media-figure">
+          <video className="omni-media-video" ref={remoteVideoRef} autoPlay playsInline aria-label="Remote participant video" />
           <audio ref={manipulatedRemoteAudioRef} autoPlay aria-label="Manipulated remote audio" />
           <figcaption>{peers.find((peer) => peer.id !== session.participantId)?.name ?? "Waiting for peer"}</figcaption>
         </figure>
       </div>
 
-      <section aria-labelledby="captions-heading" style={{ marginTop: "1rem", padding: "1rem", minHeight: 150, background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8 }}>
-        <h2 id="captions-heading" style={{ marginTop: 0 }}>Mock captions</h2>
-        <div data-testid="caption-log" role="log" aria-live="polite">
-          {captions.length === 0 ? <p style={{ color: "var(--muted)" }}>Waiting for synthetic utterances…</p> : captions.map((caption) => (
-            <p key={caption.id} style={{ opacity: caption.isFinal ? 1 : 0.7 }}>{caption.text}</p>
+      <section
+        className="omni-caption-panel"
+        aria-labelledby="captions-heading"
+        data-caption-size={captionAppearance.fontSize}
+        data-high-contrast={String(captionAppearance.highContrast)}
+        data-attribution={String(captionAppearance.attribution)}
+      >
+        <h2 className="omni-caption-heading" id="captions-heading">Mock captions</h2>
+        <div className="omni-caption-log" data-testid="caption-log" role="log" aria-live="polite">
+          {captions.length === 0 ? <p className="omni-caption-empty">Waiting for synthetic utterances…</p> : captions.map((caption) => (
+            <p className="omni-caption-line" data-final={String(caption.isFinal)} key={caption.id}>
+              {captionAppearance.attribution && (
+                <span className="omni-caption-speaker">
+                  {peers.find((peer) => peer.id === caption.fromId)?.name ?? "Remote participant"}: {" "}
+                </span>
+              )}
+              {caption.text}
+            </p>
           ))}
         </div>
       </section>
 
-      <section aria-labelledby="evidence-heading" style={{ marginTop: "1rem" }}>
+      <section className="omni-evidence" aria-labelledby="evidence-heading">
         <h2 id="evidence-heading">Evidence capture</h2>
         <p data-testid="evidence-status" role="status">{evidenceProgress}</p>
       </section>
 
       {schedule && (
-        <details data-testid="signed-schedule" style={{ marginTop: "1rem" }}>
+        <details className="omni-schedule" data-testid="signed-schedule">
           <summary>
             Signed schedule revision {schedule.scheduleRevision} · {schedule.manipulations.length} expanded conditions
           </summary>
           <p>Algorithm: {schedule.algorithm} · signature: <code>{schedule.signature}</code></p>
-          <pre style={{ overflow: "auto", fontSize: "0.75rem" }}>{JSON.stringify(schedule.manipulations, null, 2)}</pre>
+          <pre>{JSON.stringify(schedule.manipulations, null, 2)}</pre>
         </details>
       )}
     </div>

@@ -21,6 +21,12 @@ Workers, D1 relational state, per-call Durable Objects, R2 evidence storage,
 shared versioned schemas, deterministic scheduling and media manipulation,
 security controls, automated tests, and project documentation.
 
+The reliable room transport and semantic-token work added on 2026-08-06
+independently adapts maintainer-authored implementation patterns from the
+SF26 repository at commit 8b40b449953760e6496f781490329fac41b59633. The
+adaptation transfers reconnect, idempotency, token-governance, and contrast
+discipline only. It does not use SF26 names, slogans, marks, or visual assets.
+
 The later modifications are not presented as work authored, reviewed,
 approved, or published by MITRE, the Federal Communications Commission, or
 the United States Government. No endorsement by those organizations is

@@ -9,6 +9,8 @@
   ],
   "scripts": {
     "check:integrity": "node scripts/check-source-integrity.mjs",
+    "tokens:generate": "node scripts/export-web-tokens.mjs",
+    "tokens:check": "node scripts/export-web-tokens.mjs --check",
     "audit:dependencies": "npm audit --audit-level=moderate",
     "dev": "npm-run-all --parallel dev:worker dev:web",
     "dev:worker": "npm run dev --workspace=apps/worker",

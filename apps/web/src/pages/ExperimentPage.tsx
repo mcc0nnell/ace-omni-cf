@@ -6,8 +6,8 @@ const buttonStyle: React.CSSProperties = {
   padding: "0.55rem 1rem",
   borderRadius: 6,
   border: "none",
-  background: "var(--accent)",
-  color: "#fff",
+  background: "var(--omni-color-action)",
+  color: "var(--omni-color-action-text)",
   fontWeight: 600,
 };
 
@@ -97,9 +97,9 @@ export default function ExperimentPage({ id }: { id: string }) {
     <div>
       <p><a href="/">← Experiments</a></p>
       <h1>{experiment.name}</h1>
-      <p style={{ color: "var(--muted)" }}>{experiment.description}</p>
+      <p style={{ color: "var(--omni-color-text-muted)" }}>{experiment.description}</p>
 
-      <section aria-labelledby="version-heading" style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8, padding: "1rem" }}>
+      <section aria-labelledby="version-heading" style={{ background: "var(--omni-color-surface)", border: "1px solid var(--omni-color-border)", borderRadius: 8, padding: "1rem" }}>
         <h2 id="version-heading" style={{ marginTop: 0 }}>Immutable experiment versions</h2>
         <p data-testid="current-version">
           Current version: <strong>{experiment.currentVersion}</strong> · configuration SHA-256:{" "}
@@ -139,10 +139,10 @@ export default function ExperimentPage({ id }: { id: string }) {
         >
           {busy ? "Working…" : "Create call and single-use invitations"}
         </button>
-        {error && <div role="alert" style={{ marginTop: "1rem", color: "var(--danger)" }}>{error}</div>}
+        {error && <div role="alert" style={{ marginTop: "1rem", color: "var(--omni-color-danger)" }}>{error}</div>}
 
         {callId && (
-          <div data-testid="issued-call" style={{ marginTop: "1rem", padding: "1rem", border: "1px solid var(--border)", borderRadius: 8 }}>
+          <div data-testid="issued-call" style={{ marginTop: "1rem", padding: "1rem", border: "1px solid var(--omni-color-border)", borderRadius: 8 }}>
             <p>Call ID: <code>{callId}</code></p>
             <ol>
               {invitations.map((invitation) => (

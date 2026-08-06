@@ -26,8 +26,8 @@ function Shell({
           alignItems: "center",
           justifyContent: "space-between",
           padding: "0.75rem 1.5rem",
-          borderBottom: "1px solid var(--border)",
-          background: "var(--panel)",
+          borderBottom: "1px solid var(--omni-color-border)",
+          background: "var(--omni-color-surface)",
         }}
       >
         <a
@@ -44,7 +44,7 @@ function Shell({
         <nav aria-label="Primary">
           {user ? (
             <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-              <span style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
+              <span style={{ color: "var(--omni-color-text-muted)", fontSize: "0.9rem" }}>
                 {user.displayName} ({user.role})
               </span>
               <button
@@ -52,8 +52,8 @@ function Shell({
                 onClick={onLogout}
                 style={{
                   background: "transparent",
-                  border: "1px solid var(--border)",
-                  color: "var(--fg)",
+                  border: "1px solid var(--omni-color-border)",
+                  color: "var(--omni-color-text)",
                   padding: "0.35rem 0.75rem",
                   borderRadius: 6,
                   cursor: "pointer",
@@ -70,9 +70,9 @@ function Shell({
         role="contentinfo"
         style={{
           padding: "0.75rem 1.5rem",
-          borderTop: "1px solid var(--border)",
+          borderTop: "1px solid var(--omni-color-border)",
           fontSize: "0.8rem",
-          color: "var(--muted)",
+          color: "var(--omni-color-text-muted)",
         }}
       >
         ACE Omni — TRS research laboratory. Government notice preserved from original MITRE

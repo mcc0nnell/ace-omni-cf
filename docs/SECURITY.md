@@ -10,6 +10,7 @@
 - Invitations are HMAC-signed, call/version/role/template-bound, expire, and can update exactly once. Their researcher-selected TTL (1 minute to 24 hours) is the redemption deadline only. Participant links carry the bearer token in a URL fragment so it is not sent in the initial HTTP request or Worker access logs; the fragment is cleared after redemption.
 - Successful redemption starts an independent four-hour participant session. Its HMAC-signed access token is also matched against a non-revoked D1 session hash. The session deliberately may outlive the invitation that admitted it; it remains bounded and revocable.
 - Each room credential has its own 60-second TTL, is consumed atomically once, and is verified again by the destination Durable Object.
+- A reconnect never reuses a room credential. The client requests a new one-use credential, waits for the room's authoritative welcome snapshot, and only then drains its persisted observation outbox.
 - Participant WebSocket payloads cannot select identity. A mismatching `participantId` is explicitly rejected.
 
 ## Evidence integrity
@@ -42,6 +43,7 @@ Production startup rejects missing, short, or recognizable development placehold
 ## Call lifecycle integrity
 
 - The Durable Object's connection ID is authoritative for presence. A close from a socket replaced by an authorized reconnect cannot write D1 `left_at`, append `participant_left`, or broadcast a departure; a genuine close can do those things exactly once. Socket closure after a terminal transition cannot append events beyond the finalized manifest boundary.
+- Evidence-bearing client observations carry a participant-scoped `clientEventId`. A unique SQLite index assigns one authoritative sequence, duplicate delivery returns the original sequence, and an acknowledgement is sent only after the room's `d1_synced` drain succeeds. WebRTC offers, answers, ICE candidates, and raw live captions are deliberately excluded from replay.
 - A call can become `ended` only from `active`. A pre-start `end_call` instead creates an explicit `failed` terminal state, stable `failed_reason`, and immutable `call_failed` event. Finalization reports that failure distinctly rather than presenting it as an incomplete lifecycle.
 - When the authoritative call clock starts, the room persists one alarm at the exact pinned `callTimeoutSec` deadline. A timeout is attributed to the system, records `reason: call_timeout`, and produces a normally finalizable ended call. Normal termination clears the alarm, and duplicate delivery is idempotent.
 - Integration tests enforce the research-integrity invariant directly: every exercised terminal state either produces a valid evidence manifest or carries a failure reason.
