@@ -190,11 +190,16 @@ function normalizeDescriptor(descriptor: AdapterDescriptor): AdapterDescriptor {
   if (descriptor.metadata) {
     assertJsonValue(descriptor.metadata);
   }
-  return {
-    ...descriptor,
+  const normalized: AdapterDescriptor = {
+    id: descriptor.id,
+    kind: descriptor.kind,
+    protocolVersion: 1,
     capabilities,
-    metadata: descriptor.metadata ? cloneJson(descriptor.metadata) : undefined,
   };
+  if (descriptor.metadata) {
+    normalized.metadata = cloneJson(descriptor.metadata);
+  }
+  return normalized;
 }
 
 export function normalizeExperimentRun(run: ExperimentRun): ExperimentRun {
