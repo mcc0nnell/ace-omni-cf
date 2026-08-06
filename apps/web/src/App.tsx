@@ -75,8 +75,7 @@ function Shell({
           color: "var(--muted)",
         }}
       >
-        ACE Omni — TRS research laboratory. Government notice preserved from original MITRE
-        release.
+        ACE Omni — TRS research laboratory. Government notice preserved from original release.
       </footer>
     </div>
   );

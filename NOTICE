@@ -3,13 +3,12 @@ ACE Omni (Cloudflare-native) — provenance of modifications
 Original work
 -------------
 
-This repository is derived from MITRE ACE Omni:
+This repository is derived from the publicly released ACE Omni research platform:
 https://github.com/mitrefccace/ace-omni
 
 The original government, contract, copyright, and public-release notice is
 preserved verbatim in LICENSE. It identifies Contract Number 75FCMC18D0047,
-FAR 52.227-14, ©2024 The MITRE Corporation, and public-release identifier
-24-0463.
+FAR 52.227-14, and public-release identifier 24-0463.
 
 Later modifications
 -------------------
@@ -22,14 +21,14 @@ shared versioned schemas, deterministic scheduling and media manipulation,
 security controls, automated tests, and project documentation.
 
 The later modifications are not presented as work authored, reviewed,
-approved, or published by MITRE, the Federal Communications Commission, or
-the United States Government. No endorsement by those organizations is
-implied.
+approved, or published by the original publisher, the Federal Communications
+Commission, or the United States Government. No endorsement by those
+organizations is implied.
 
 Publication basis and limits
 ----------------------------
 
-The repository preserves and points to MITRE's public GitHub publication and
+The repository preserves and points to the original public GitHub publication and
 the original notice's statement, "Approved for Public Release; Distribution
 Unlimited 24-0463." That identifier is reported only as provenance for the
 original material. It is not represented as a separate public-release review,
