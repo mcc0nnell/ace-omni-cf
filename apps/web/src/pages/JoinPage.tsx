@@ -36,13 +36,13 @@ export default function JoinPage() {
   if (!session) return null;
 
   return (
-    <div style={{ maxWidth: 560, margin: "2rem auto", padding: "1.25rem", background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8 }}>
+    <div style={{ maxWidth: 560, margin: "2rem auto", padding: "1.25rem", background: "var(--omni-color-surface)", border: "1px solid var(--omni-color-border)", borderRadius: 8 }}>
       <h1>Invitation redeemed</h1>
       <p data-testid="participant-identity">
         The server assigned you as <strong>{session.participantName}</strong> ({session.role})
         for <strong>{session.callName}</strong>.
       </p>
-      <p style={{ color: "var(--muted)" }}>
+      <p style={{ color: "var(--omni-color-text-muted)" }}>
         This identity, role, call, and immutable experiment version came from the signed,
         single-use invitation. They cannot be edited in the browser.
       </p>
@@ -54,7 +54,7 @@ export default function JoinPage() {
         data-testid="enter-call"
         type="button"
         onClick={() => window.location.assign(`/call/${session.callId}`)}
-        style={{ padding: "0.7rem 1.25rem", borderRadius: 6, border: "none", background: "var(--accent)", color: "#fff", fontWeight: 600 }}
+        style={{ padding: "0.7rem 1.25rem", borderRadius: 6, border: "none", background: "var(--omni-color-action)", color: "var(--omni-color-action-text)", fontWeight: 600 }}
       >
         Enter secured call
       </button>

@@ -24,7 +24,7 @@ export default function LoginPage({ onLogin }: { onLogin: (u: any) => void }) {
   return (
     <div style={{ maxWidth: 420, margin: "3rem auto" }}>
       <h1 style={{ marginTop: 0 }}>Sign in</h1>
-      <p style={{ color: "var(--muted)" }}>
+      <p style={{ color: "var(--omni-color-text-muted)" }}>
         Researcher / administrator access to the TRS experiment laboratory.
       </p>
       <form onSubmit={handleSubmit} aria-describedby={error ? "login-error" : undefined}>
@@ -43,9 +43,9 @@ export default function LoginPage({ onLogin }: { onLogin: (u: any) => void }) {
               width: "100%",
               padding: "0.6rem 0.75rem",
               borderRadius: 6,
-              border: "1px solid var(--border)",
-              background: "var(--bg)",
-              color: "var(--fg)",
+              border: "1px solid var(--omni-color-border)",
+              background: "var(--omni-color-canvas)",
+              color: "var(--omni-color-text)",
             }}
           />
         </div>
@@ -64,9 +64,9 @@ export default function LoginPage({ onLogin }: { onLogin: (u: any) => void }) {
               width: "100%",
               padding: "0.6rem 0.75rem",
               borderRadius: 6,
-              border: "1px solid var(--border)",
-              background: "var(--bg)",
-              color: "var(--fg)",
+              border: "1px solid var(--omni-color-border)",
+              background: "var(--omni-color-canvas)",
+              color: "var(--omni-color-text)",
             }}
           />
         </div>
@@ -77,9 +77,9 @@ export default function LoginPage({ onLogin }: { onLogin: (u: any) => void }) {
             style={{
               marginBottom: "1rem",
               padding: "0.75rem",
-              background: "color-mix(in srgb, var(--danger) 15%, transparent)",
+              background: "color-mix(in srgb, var(--omni-color-danger) 15%, transparent)",
               borderRadius: 6,
-              color: "var(--danger)",
+              color: "var(--omni-color-danger)",
             }}
           >
             {error}
@@ -93,8 +93,8 @@ export default function LoginPage({ onLogin }: { onLogin: (u: any) => void }) {
             padding: "0.7rem",
             borderRadius: 6,
             border: "none",
-            background: "var(--accent)",
-            color: "#fff",
+            background: "var(--omni-color-action)",
+            color: "var(--omni-color-action-text)",
             fontWeight: 600,
             cursor: busy ? "wait" : "pointer",
           }}
@@ -102,7 +102,7 @@ export default function LoginPage({ onLogin }: { onLogin: (u: any) => void }) {
           {busy ? "Signing in…" : "Sign in"}
         </button>
       </form>
-      <p style={{ marginTop: "1.5rem", fontSize: "0.85rem", color: "var(--muted)" }}>
+      <p style={{ marginTop: "1.5rem", fontSize: "0.85rem", color: "var(--omni-color-text-muted)" }}>
         Local-only synthetic accounts can be created with <code>npm run seed:local</code>.
         No credentials are embedded in the production web bundle.
       </p>

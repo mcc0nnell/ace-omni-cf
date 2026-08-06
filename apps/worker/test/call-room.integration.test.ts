@@ -595,13 +595,28 @@ describe("authoritative call Durable Object", () => {
     const callerManipulation = schedule.manipulations.find(
       (item) => item.targetParticipantId === caller.participantId,
     )!;
-    callerSocket.socket.send(JSON.stringify({
+    const executedEvent = {
       type: "manipulation_executed",
+      clientEventId: "execute:caption-delay-caller",
       manipulationId: callerManipulation.id,
       clientClockMs: Date.now(),
-    }));
+    };
+    callerSocket.socket.send(JSON.stringify(executedEvent));
+    const firstAck = await callerSocket.next("event_ack");
+    callerSocket.socket.send(JSON.stringify(executedEvent));
+    const replayAck = await callerSocket.next("event_ack");
+    expect(firstAck).toMatchObject({
+      clientEventId: executedEvent.clientEventId,
+      applied: true,
+    });
+    expect(replayAck).toMatchObject({
+      clientEventId: executedEvent.clientEventId,
+      applied: false,
+      sequence: firstAck.sequence,
+    });
     calleeSocket.socket.send(JSON.stringify({
       type: "manipulation_ack",
+      clientEventId: "ack:unauthorized-caption-delay",
       manipulationId: "caption-delay-caller",
       clientClockMs: Date.now(),
     }));

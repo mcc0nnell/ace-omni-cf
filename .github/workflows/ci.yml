@@ -35,6 +35,9 @@ jobs:
       - name: Reject NUL-corrupted tracked source
         run: npm run check:integrity
 
+      - name: Reject semantic-token drift
+        run: npm run tokens:check
+
       - name: Install from lockfile
         run: npm ci
 

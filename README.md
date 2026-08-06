@@ -20,6 +20,8 @@ The implemented vertical slice covers:
 10. AudioWorklet frame scheduling plus caption conditions, acknowledgements, and observed execution times.
 11. Configured MediaRecorder evidence, one-use upload authorization, R2 checksum validation, and D1 lifecycle events.
 12. A versioned immutable evidence manifest, authorized downloads, research export, and pinned replay.
+13. Fresh-credential reconnect, authoritative resynchronization, and a persistent client outbox for idempotent research observations.
+14. An unbranded semantic-token system that enforces contrast and renders the pinned caption size, high-contrast, and attribution settings.
 
 ## How Omni works
 
@@ -62,8 +64,8 @@ flowchart TB
 1. The researcher signs in through a server-managed session. D1 stores only the session-token hash; state-changing requests require the matching CSRF token and an allowed origin.
 2. The Worker validates an experiment with the shared Zod schema and saves an immutable version plus its SHA-256 digest. Every call pins one exact version.
 3. The Worker issues call-, version-, role-, and expiration-bound invitations. Atomic redemption assigns identity and role on the server and prevents reuse.
-4. Each participant receives a short-lived, one-use credential for that call's Durable Object. The room revalidates it before accepting the WebSocket.
-5. The Durable Object establishes the authoritative clock, persists room state, expands the pinned experiment into an HMAC-authenticated schedule, authorizes signaling, and records ordered events. WebRTC media flows directly between the browsers.
+4. Each participant receives a short-lived, one-use credential for that call's Durable Object. The room revalidates it before accepting the WebSocket, and every reconnect obtains a new credential before accepting an authoritative state snapshot.
+5. The Durable Object establishes the authoritative clock, persists room state, expands the pinned experiment into an HMAC-authenticated schedule, authorizes signaling, and records ordered events. Evidence-bearing client observations use stable client event IDs, so a lost acknowledgement can be replayed without creating a second event. WebRTC media flows directly between the browsers.
 6. Caption conditions and AudioWorklets execute at schedule-derived offsets. Clients acknowledge assigned conditions and report observed execution times without controlling the authoritative schedule.
 7. MediaRecorder captures only policy-authorized streams. The Worker binds each one-use upload to its call, participant, artifact type, size, and SHA-256 digest before storing bytes in R2 and metadata in D1.
 8. Finalization produces an immutable manifest connecting the pinned configuration, participants, schedule, events, captions, recordings, checksums, and timestamps. The researcher can inspect, download, export, or replay that exact version.
@@ -128,6 +130,7 @@ For Vite hot reload, run `npm run dev` and open `http://127.0.0.1:5173`.
 
 ```bash
 npm run check:integrity
+npm run tokens:check
 npm run audit:dependencies
 npm run typecheck
 npm run build

@@ -34,6 +34,12 @@ const SessionDescriptionSchema = z.object({
   sdp: z.string().max(128_000).optional(),
 });
 
+const ClientEventIdSchema = z
+  .string()
+  .min(1)
+  .max(160)
+  .regex(/^[A-Za-z0-9._:-]+$/);
+
 const SignalMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("offer"), targetId: z.string().uuid(), sdp: SessionDescriptionSchema }),
   z.object({ type: z.literal("answer"), targetId: z.string().uuid(), sdp: SessionDescriptionSchema }),
@@ -44,11 +50,20 @@ const SignalMessageSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.enum(["manipulation_ack", "manipulation_executed"]),
+    clientEventId: ClientEventIdSchema,
     manipulationId: z.string().min(1).max(120),
     clientClockMs: z.number().int().nonnegative(),
   }),
   z.object({
-    type: z.enum(["caption_raw", "caption_displayed"]),
+    type: z.literal("caption_raw"),
+    text: z.string().max(2_000),
+    isFinal: z.boolean(),
+    clientClockMs: z.number().int().nonnegative(),
+    utteranceId: z.string().min(1).max(120),
+  }),
+  z.object({
+    type: z.literal("caption_displayed"),
+    clientEventId: ClientEventIdSchema,
     text: z.string().max(2_000),
     isFinal: z.boolean(),
     clientClockMs: z.number().int().nonnegative(),
@@ -56,6 +71,7 @@ const SignalMessageSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.enum(["recording_started", "recording_stopped"]),
+    clientEventId: ClientEventIdSchema,
     artifactType: z.string().min(1).max(80),
     clientClockMs: z.number().int().nonnegative(),
   }),
@@ -108,6 +124,11 @@ interface ConnectionAttachment {
   role: "caller" | "callee" | "communications_assistant";
   name: string;
   joinedAt: number;
+}
+
+interface ClientEventResult {
+  applied: boolean;
+  sequence: number;
 }
 
 export interface RoomStatus {
@@ -171,6 +192,19 @@ export class CallRoom extends DurableObject<WorkerEnv> {
       INSERT OR IGNORE INTO _sql_schema_migrations (version, applied_at)
       VALUES (1, datetime('now'));
     `);
+    const version = this.ctx.storage.sql
+      .exec<{ version: number }>("SELECT COALESCE(MAX(version), 0) AS version FROM _sql_schema_migrations")
+      .toArray()[0]?.version ?? 0;
+    if (version < 2) {
+      this.ctx.storage.sql.exec(`
+        ALTER TABLE room_events ADD COLUMN client_event_id TEXT;
+        CREATE UNIQUE INDEX room_events_participant_client_event
+          ON room_events (participant_id, client_event_id)
+          WHERE client_event_id IS NOT NULL;
+        INSERT INTO _sql_schema_migrations (version, applied_at)
+        VALUES (2, datetime('now'));
+      `);
+    }
   }
 
   async initialize(input: unknown): Promise<RoomStatus> {
@@ -355,7 +389,7 @@ export class CallRoom extends DurableObject<WorkerEnv> {
       ).bind(meta.call_id, new Date(now).toISOString(), meta.call_id),
     ]);
 
-    await this.recordEvent("participant_joined", claims.participantId, {
+    const participantJoinedSequence = await this.recordEvent("participant_joined", claims.participantId, {
       participantConfigId: claims.participantConfigId,
       role: claims.role,
       name: claims.name,
@@ -371,12 +405,14 @@ export class CallRoom extends DurableObject<WorkerEnv> {
         callClockStartMs: meta.call_clock_start_ms,
         state: meta.state,
         schedule: meta.schedule_json ? JSON.parse(meta.schedule_json) : null,
+        lastSequence: this.latestSequence(),
       }),
     );
     this.broadcast({
       type: "participant_joined",
       participant: this.publicParticipant(attachment),
       participants: this.connectedParticipants(),
+      sequence: participantJoinedSequence,
     }, claims.participantId);
 
     if (meta.state === "waiting" && new Set(this.activeConnections().map((item) => item.participantId)).size === 2) {
@@ -395,6 +431,10 @@ export class CallRoom extends DurableObject<WorkerEnv> {
     const attachment = this.attachment(socket);
     const meta = this.readMeta();
     if (!attachment || !meta || meta.state === "failed") return;
+    if (!this.isAuthoritativeConnection(attachment)) {
+      this.sendError(socket, "stale_connection", "This connection was replaced by an authorized reconnect");
+      return;
+    }
     const text = typeof message === "string" ? message : new TextDecoder().decode(message);
     if (text.length > 256_000) {
       this.sendError(socket, "message_too_large", "WebSocket message exceeds the call protocol limit");
@@ -452,22 +492,25 @@ export class CallRoom extends DurableObject<WorkerEnv> {
         this.sendError(socket, "invalid_manipulation", "Manipulation is not authorized for this participant");
         return;
       }
-      await this.recordEvent(
+      const result = await this.recordClientEvent(
         data.type,
         attachment.participantId,
         {
+          clientEventId: data.clientEventId,
           manipulationId: data.manipulationId,
           scheduledForMs: (meta.call_clock_start_ms ?? 0) + manipulation.startOffsetMs,
           actualExecutionTimeMs: data.clientClockMs,
         },
         data.clientClockMs,
+        data.clientEventId,
       );
+      this.sendEventAck(socket, data.clientEventId, result);
       return;
     }
 
-    if (data.type === "caption_raw" || data.type === "caption_displayed") {
-      await this.recordEvent(
-        data.type,
+    if (data.type === "caption_raw") {
+      const sequence = await this.recordEvent(
+        "caption_raw",
         attachment.participantId,
         {
           utteranceId: data.utteranceId,
@@ -484,19 +527,53 @@ export class CallRoom extends DurableObject<WorkerEnv> {
           text: data.text,
           isFinal: data.isFinal,
           clientClockMs: data.clientClockMs,
+          sequence,
         },
         attachment.participantId,
       );
       return;
     }
 
-    if (data.type === "recording_started" || data.type === "recording_stopped") {
-      await this.recordEvent(
+    if (data.type === "caption_displayed") {
+      const result = await this.recordClientEvent(
         data.type,
         attachment.participantId,
-        { artifactType: data.artifactType },
+        {
+          clientEventId: data.clientEventId,
+          utteranceId: data.utteranceId,
+          text: data.text,
+          isFinal: data.isFinal,
+        },
         data.clientClockMs,
+        data.clientEventId,
       );
+      this.sendEventAck(socket, data.clientEventId, result);
+      if (result.applied) {
+        this.broadcast(
+          {
+            type: data.type,
+            fromId: attachment.participantId,
+            utteranceId: data.utteranceId,
+            text: data.text,
+            isFinal: data.isFinal,
+            clientClockMs: data.clientClockMs,
+            sequence: result.sequence,
+          },
+          attachment.participantId,
+        );
+      }
+      return;
+    }
+
+    if (data.type === "recording_started" || data.type === "recording_stopped") {
+      const result = await this.recordClientEvent(
+        data.type,
+        attachment.participantId,
+        { clientEventId: data.clientEventId, artifactType: data.artifactType },
+        data.clientClockMs,
+        data.clientEventId,
+      );
+      this.sendEventAck(socket, data.clientEventId, result);
       return;
     }
 
@@ -530,13 +607,14 @@ export class CallRoom extends DurableObject<WorkerEnv> {
     )
       .bind(new Date(now).toISOString(), meta.call_id, attachment.participantId)
       .run();
-    await this.recordEvent("participant_left", attachment.participantId, {
+    const sequence = await this.recordEvent("participant_left", attachment.participantId, {
       connectionId: attachment.connectionId,
     });
     this.broadcast({
       type: "participant_left",
       participantId: attachment.participantId,
       participants: this.connectedParticipants(),
+      sequence,
     });
   }
 
@@ -601,8 +679,8 @@ export class CallRoom extends DurableObject<WorkerEnv> {
         latest.call_id,
       )
       .run();
-    await this.recordEvent("call_started", null, { callClockStartMs });
-    await this.recordEvent("schedule_issued", null, {
+    const callStartedSequence = await this.recordEvent("call_started", null, { callClockStartMs });
+    const scheduleIssuedSequence = await this.recordEvent("schedule_issued", null, {
       scheduleRevision,
       signature: schedule.signature,
       manipulationCount: schedule.manipulations.length,
@@ -611,8 +689,9 @@ export class CallRoom extends DurableObject<WorkerEnv> {
       type: "call_started",
       callClockStartMs,
       participants: this.connectedParticipants(),
+      sequence: callStartedSequence,
     });
-    this.broadcast({ type: "schedule_issued", schedule });
+    this.broadcast({ type: "schedule_issued", schedule, sequence: scheduleIssuedSequence });
   }
 
   async alarm(): Promise<void> {
@@ -662,13 +741,13 @@ export class CallRoom extends DurableObject<WorkerEnv> {
         latest.call_id,
       )
       .run();
-    await this.recordEvent(
+    const sequence = await this.recordEvent(
       "call_ended",
       participantId,
       { endedAtMs, durationMs, reason },
       clientClockMs,
     );
-    this.broadcast({ type: "call_ended", endedAtMs, durationMs, reason });
+    this.broadcast({ type: "call_ended", endedAtMs, durationMs, reason, sequence });
   }
 
   private async failCall(
@@ -692,8 +771,8 @@ export class CallRoom extends DurableObject<WorkerEnv> {
       `UPDATE calls SET state = 'failed', failed_reason = ?, updated_at = ?
        WHERE id = ? AND state NOT IN ('ended', 'failed')`,
     ).bind(reason, failedAt, latest.call_id).run();
-    await this.recordEvent("call_failed", participantId, { reason, failedAt });
-    this.broadcast({ type: "call_failed", reason, failedAt });
+    const sequence = await this.recordEvent("call_failed", participantId, { reason, failedAt });
+    this.broadcast({ type: "call_failed", reason, failedAt, sequence });
   }
 
   private async recordEvent(
@@ -702,18 +781,19 @@ export class CallRoom extends DurableObject<WorkerEnv> {
     payload: Record<string, unknown>,
     clientClockMs: number | null = null,
     suppliedMeta?: RoomMetaRow,
-  ): Promise<void> {
+  ): Promise<number> {
     const meta = suppliedMeta ?? this.requireMeta();
     const serverClockMs = Date.now();
     const createdAt = new Date(serverClockMs).toISOString();
     const callOffsetMs =
       meta.call_clock_start_ms === null ? null : serverClockMs - meta.call_clock_start_ms;
     const eventId = crypto.randomUUID();
-    this.ctx.storage.sql.exec(
+    const inserted = this.ctx.storage.sql.exec<{ sequence: number }>(
       `INSERT INTO room_events (
-         event_id, type, participant_id, payload_json, client_clock_ms,
+         event_id, type, participant_id, client_event_id, payload_json, client_clock_ms,
          server_clock_ms, call_offset_ms, created_at, d1_synced
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+       ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, 0)
+       RETURNING sequence`,
       eventId,
       type,
       participantId,
@@ -722,8 +802,56 @@ export class CallRoom extends DurableObject<WorkerEnv> {
       serverClockMs,
       callOffsetMs,
       createdAt,
-    );
+    ).toArray()[0];
+    if (!inserted) throw new Error("Room event insert did not return a sequence");
     await this.syncPendingEvents();
+    return inserted.sequence;
+  }
+
+  private async recordClientEvent(
+    type: CallEventType,
+    participantId: string,
+    payload: Record<string, unknown>,
+    clientClockMs: number,
+    clientEventId: string,
+  ): Promise<ClientEventResult> {
+    const meta = this.requireMeta();
+    const serverClockMs = Date.now();
+    const createdAt = new Date(serverClockMs).toISOString();
+    const callOffsetMs =
+      meta.call_clock_start_ms === null ? null : serverClockMs - meta.call_clock_start_ms;
+    const result = this.ctx.storage.transactionSync<ClientEventResult>(() => {
+      const existing = this.ctx.storage.sql.exec<{ sequence: number }>(
+        `SELECT sequence FROM room_events
+         WHERE participant_id = ? AND client_event_id = ?`,
+        participantId,
+        clientEventId,
+      ).toArray()[0];
+      if (existing) return { applied: false, sequence: existing.sequence };
+
+      const inserted = this.ctx.storage.sql.exec<{ sequence: number }>(
+        `INSERT INTO room_events (
+           event_id, type, participant_id, client_event_id, payload_json, client_clock_ms,
+           server_clock_ms, call_offset_ms, created_at, d1_synced
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+         RETURNING sequence`,
+        crypto.randomUUID(),
+        type,
+        participantId,
+        clientEventId,
+        canonicalJson(payload),
+        clientClockMs,
+        serverClockMs,
+        callOffsetMs,
+        createdAt,
+      ).toArray()[0];
+      if (!inserted) throw new Error("Client event insert did not return a sequence");
+      return { applied: true, sequence: inserted.sequence };
+    });
+    // An ACK means the event is durable in both the room sequencer and D1.
+    // Replayed events also drain a prior unsynced insert before being ACKed.
+    await this.syncPendingEvents();
+    return result;
   }
 
   private async syncPendingEvents(): Promise<void> {
@@ -774,6 +902,12 @@ export class CallRoom extends DurableObject<WorkerEnv> {
       .toArray()[0] ?? null;
   }
 
+  private latestSequence(): number {
+    return this.ctx.storage.sql
+      .exec<{ sequence: number }>("SELECT COALESCE(MAX(sequence), 0) AS sequence FROM room_events")
+      .toArray()[0]?.sequence ?? 0;
+  }
+
   private requireMeta(): RoomMetaRow {
     const meta = this.readMeta();
     if (!meta) throw new Error("Call room is not initialized");
@@ -798,6 +932,17 @@ export class CallRoom extends DurableObject<WorkerEnv> {
       return null;
     }
     return candidate as ConnectionAttachment;
+  }
+
+  private isAuthoritativeConnection(attachment: ConnectionAttachment): boolean {
+    return Boolean(this.ctx.storage.sql
+      .exec<{ participant_id: string }>(
+        `SELECT participant_id FROM participants
+         WHERE participant_id = ? AND connection_id = ? AND left_at_ms IS NULL`,
+        attachment.participantId,
+        attachment.connectionId,
+      )
+      .toArray()[0]);
   }
 
   private activeConnections(): ConnectionAttachment[] {
@@ -853,6 +998,27 @@ export class CallRoom extends DurableObject<WorkerEnv> {
       console.error(JSON.stringify({
         message: "call_room_error_delivery_failed",
         code,
+        error: error instanceof Error ? error.message : String(error),
+      }));
+    }
+  }
+
+  private sendEventAck(
+    socket: WebSocket,
+    clientEventId: string,
+    result: ClientEventResult,
+  ): void {
+    try {
+      socket.send(JSON.stringify({
+        type: "event_ack",
+        clientEventId,
+        sequence: result.sequence,
+        applied: result.applied,
+      }));
+    } catch (error) {
+      console.error(JSON.stringify({
+        message: "call_room_ack_delivery_failed",
+        clientEventId,
         error: error instanceof Error ? error.message : String(error),
       }));
     }

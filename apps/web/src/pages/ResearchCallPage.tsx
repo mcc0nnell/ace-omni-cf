@@ -57,7 +57,7 @@ export default function ResearchCallPage({ callId }: { callId: string }) {
         State: <strong>{call.state}</strong> · pinned experiment version {call.experimentConfigVersion}<br />
         Configuration SHA-256: <code>{call.configSha256}</code>
       </p>
-      {error && <div role="alert" style={{ color: "var(--danger)" }}>{error}</div>}
+      {error && <div role="alert" style={{ color: "var(--omni-color-danger)" }}>{error}</div>}
 
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
         <button data-testid="finalize-call" type="button" disabled={busy || call.state !== "ended" || Boolean(detail.manifest)} onClick={finalize}>
@@ -95,7 +95,7 @@ export default function ResearchCallPage({ callId }: { callId: string }) {
       </section>
 
       {detail.manifest && (
-        <section data-testid="manifest-ready" style={{ padding: "1rem", border: "1px solid var(--success)", borderRadius: 8 }}>
+        <section data-testid="manifest-ready" style={{ padding: "1rem", border: "1px solid var(--omni-color-success)", borderRadius: 8 }}>
           <h2>Evidence manifest v{detail.manifest.version}</h2>
           <p>
             The manifest pins the exact experiment version, signed schedule, participants,
