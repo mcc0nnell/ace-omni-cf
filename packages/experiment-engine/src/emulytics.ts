@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 export type AdapterCapability =
   | "communications"
   | "network"
@@ -400,7 +402,7 @@ export class SyntheticLoopbackAdapter implements SystemUnderTestAdapter {
     }
   }
 
-  async stop(): Promise<void> {
+  async stop(_reason?: string): Promise<void> {
     if (this.state === "new") {
       throw new Error("adapter cannot stop before prepare");
     }
