@@ -145,7 +145,11 @@ function assertJsonValue(value: JsonValue, path = "value"): void {
 export function canonicalJson(value: JsonValue): string {
   assertJsonValue(value);
   if (value === null || typeof value !== "object") {
-    return JSON.stringify(value);
+    const serialized = JSON.stringify(value);
+    if (serialized === undefined) {
+      throw new Error("Validated JSON value could not be serialized");
+    }
+    return serialized;
   }
   if (Array.isArray(value)) {
     return `[${value.map((entry) => canonicalJson(entry)).join(",")}]`;
@@ -222,7 +226,9 @@ export function compileExecutionPlan(input: {
   const run = normalizeExperimentRun(input.run);
   assertPositiveInteger(input.planRevision, "planRevision");
 
-  const adaptersById = new Map(run.adapters.map((adapter) => [adapter.id, adapter]));
+  const adaptersById = new Map(
+    run.adapters.map((adapter) => [adapter.id, adapter] as const),
+  );
   const commandIds = new Set<string>();
 
   const normalized = input.commands.map((definition) => {
