@@ -60,6 +60,7 @@ The generic compiler:
 - validates stable run, adapter, operation, and command IDs;
 - validates command-to-adapter capability compatibility;
 - derives deterministic per-command seeds when a command does not pin one explicitly;
+- copies JSON command parameters into the compiled plan so later caller mutation cannot change the plan;
 - sorts commands by scheduled offset, adapter ID, and command ID; and
 - assigns stable one-based command sequence numbers.
 
@@ -79,14 +80,14 @@ Adapters emit `ObservationEnvelope` records with:
 - run and adapter identity;
 - source identity;
 - observation timestamp;
-- JSON payload; and
+- copied JSON payload; and
 - canonical SHA-256 payload digest.
 
 The replay key is:
 
-`runId : adapterId : observationId`
+`runId : adapterId : sourceId : observationId`
 
-An identical observation delivered again is idempotent. Reuse of the same replay key with a different payload digest is a protocol conflict and is rejected. This prevents a transport retry from becoming a second measurement while also preventing silent mutation of an already identified observation.
+An exact observation delivered again is idempotent. Reuse of the same replay key with a different observation timestamp or payload digest is a protocol conflict and is rejected. Different sources therefore retain independent observation-ID namespaces, while a transport retry cannot become a second measurement or silently mutate already identified evidence.
 
 The current Durable Object research-event deduplication remains unchanged. Future generic-run persistence should carry the same replay-key invariant into the authoritative SQLite sequencer.
 
