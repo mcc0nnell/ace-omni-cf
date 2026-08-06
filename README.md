@@ -21,6 +21,53 @@ The implemented vertical slice covers:
 11. Configured MediaRecorder evidence, one-use upload authorization, R2 checksum validation, and D1 lifecycle events.
 12. A versioned immutable evidence manifest, authorized downloads, research export, and pinned replay.
 
+## How Omni works
+
+The browsers execute media and scheduled conditions, but the server decides the authoritative identity, configuration, timing, and evidence metadata.
+
+```mermaid
+flowchart TB
+    researcher["Researcher browser<br/>React and Vite"]
+    api["Hono Worker API<br/>identity, authorization, configuration"]
+    d1[("D1<br/>experiments, calls, participants, events")]
+    room["CallRoom Durable Object<br/>one authority per call"]
+    roomdb[("Durable Object SQLite<br/>clock, presence, sequence, recovery")]
+    caller["Caller browser"]
+    callee["Callee browser"]
+    r2[("R2<br/>recordings and evidence")]
+    manifest["Immutable evidence manifest"]
+
+    researcher -->|"Session and enforced CSRF"| api
+    api <-->|"Owned relational state"| d1
+    api -->|"Pin experiment version and initialize room"| room
+    room <--> roomdb
+
+    caller -->|"Redeem signed invitation"| api
+    callee -->|"Redeem signed invitation"| api
+    caller <-->|"Authenticated WebSocket<br/>signaling, captions, schedule, acknowledgements"| room
+    callee <-->|"Authenticated WebSocket<br/>signaling, captions, schedule, acknowledgements"| room
+    caller <-->|"Peer-to-peer WebRTC audio and video"| callee
+
+    room -->|"Lifecycle and ordered events"| d1
+    caller -->|"Checksum-bound evidence upload"| api
+    callee -->|"Checksum-bound evidence upload"| api
+    api --> r2
+
+    d1 --> manifest
+    room --> manifest
+    r2 --> manifest
+    api -->|"Inspect, replay, and export"| researcher
+```
+
+1. The researcher signs in through a server-managed session. D1 stores only the session-token hash; state-changing requests require the matching CSRF token and an allowed origin.
+2. The Worker validates an experiment with the shared Zod schema and saves an immutable version plus its SHA-256 digest. Every call pins one exact version.
+3. The Worker issues call-, version-, role-, and expiration-bound invitations. Atomic redemption assigns identity and role on the server and prevents reuse.
+4. Each participant receives a short-lived, one-use credential for that call's Durable Object. The room revalidates it before accepting the WebSocket.
+5. The Durable Object establishes the authoritative clock, persists room state, expands the pinned experiment into an HMAC-authenticated schedule, authorizes signaling, and records ordered events. WebRTC media flows directly between the browsers.
+6. Caption conditions and AudioWorklets execute at schedule-derived offsets. Clients acknowledge assigned conditions and report observed execution times without controlling the authoritative schedule.
+7. MediaRecorder captures only policy-authorized streams. The Worker binds each one-use upload to its call, participant, artifact type, size, and SHA-256 digest before storing bytes in R2 and metadata in D1.
+8. Finalization produces an immutable manifest connecting the pinned configuration, participants, schedule, events, captions, recordings, checksums, and timestamps. The researcher can inspect, download, export, or replay that exact version.
+
 See [architecture audit](docs/ARCHITECTURE_AUDIT.md), [implementation status](docs/IMPLEMENTATION_STATUS.md), [security boundaries](docs/SECURITY.md), and the [executed validation record](docs/VALIDATION.md).
 
 ## Repository map
