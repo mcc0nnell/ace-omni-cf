@@ -156,6 +156,10 @@ export function canonicalJson(value: JsonValue): string {
   return `{${entries.join(",")}}`;
 }
 
+function cloneJson<T extends JsonValue>(value: T): T {
+  return JSON.parse(canonicalJson(value)) as T;
+}
+
 export async function sha256Canonical(value: JsonValue): Promise<string> {
   const bytes = new TextEncoder().encode(canonicalJson(value));
   const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
@@ -178,7 +182,7 @@ function normalizeDescriptor(descriptor: AdapterDescriptor): AdapterDescriptor {
   return {
     ...descriptor,
     capabilities,
-    metadata: descriptor.metadata ? { ...descriptor.metadata } : undefined,
+    metadata: descriptor.metadata ? cloneJson(descriptor.metadata) : undefined,
   };
 }
 
@@ -242,8 +246,7 @@ export function compileExecutionPlan(input: {
         `command ${definition.id} requires ${definition.capability}, which adapter ${definition.adapterId} does not declare`,
       );
     }
-    const parameters = definition.parameters ?? {};
-    assertJsonValue(parameters, `command ${definition.id} parameters`);
+    const parameters = cloneJson(definition.parameters ?? {});
     const seed = definition.seed ?? deriveCommandSeed(run.seed, definition.id);
     assertSeed(seed, `command ${definition.id} seed`);
 
@@ -284,15 +287,17 @@ export async function createObservationEnvelope(input: ObservationInput): Promis
   assertIsoDate(input.observedAt, "observation.observedAt");
   assertJsonValue(input.payload, "observation.payload");
 
+  const payload = cloneJson(input.payload);
   return {
     version: 1,
     ...input,
-    payloadSha256: await sha256Canonical(input.payload),
+    payload,
+    payloadSha256: await sha256Canonical(payload),
   };
 }
 
 export function observationReplayKey(observation: ObservationEnvelope): string {
-  return `${observation.runId}:${observation.adapterId}:${observation.observationId}`;
+  return `${observation.runId}:${observation.adapterId}:${observation.sourceId}:${observation.observationId}`;
 }
 
 export function deduplicateObservationEnvelopes(
@@ -306,7 +311,10 @@ export function deduplicateObservationEnvelopes(
       accepted.set(key, observation);
       continue;
     }
-    if (existing.payloadSha256 !== observation.payloadSha256) {
+    if (
+      existing.observedAt !== observation.observedAt ||
+      existing.payloadSha256 !== observation.payloadSha256
+    ) {
       throw new Error(`conflicting replay for observation ${key}`);
     }
   }
