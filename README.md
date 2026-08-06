@@ -68,6 +68,18 @@ flowchart TB
 7. MediaRecorder captures only policy-authorized streams. The Worker binds each one-use upload to its call, participant, artifact type, size, and SHA-256 digest before storing bytes in R2 and metadata in D1.
 8. Finalization produces an immutable manifest connecting the pinned configuration, participants, schedule, events, captions, recordings, checksums, and timestamps. The researcher can inspect, download, export, or replay that exact version.
 
+## Validated browser views
+
+These captures come from the passing two-context Playwright call using synthetic identities, mock captions, and Chromium fake camera and microphone devices. The green frames are the fake camera feed, not real participant media.
+
+| Caller | Callee |
+| --- | --- |
+| ![Caller browser showing authenticated identity, connected WebRTC media, mock captions, evidence status, and the signed schedule](docs/images/caller-active.png) | ![Callee browser showing its server-assigned role, connected peer media, mock captions, and evidence capture](docs/images/callee-active.png) |
+
+The researcher view connects the pinned experiment version to participants, authorized recordings, ordered events, checksums, replay, export, and the immutable evidence manifest.
+
+![Researcher call inspection showing the pinned configuration digest, participants, authorized evidence, immutable event sequence, and evidence manifest](docs/images/research-manifest.png)
+
 See [architecture audit](docs/ARCHITECTURE_AUDIT.md), [implementation status](docs/IMPLEMENTATION_STATUS.md), [security boundaries](docs/SECURITY.md), and the [executed validation record](docs/VALIDATION.md).
 
 ## Repository map
