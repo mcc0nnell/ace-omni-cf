@@ -4,7 +4,17 @@
  * ©2024 The MITRE Corporation. Approved for Public Release 24-0463.
  */
 import type { ExperimentSchedule, ScheduledManipulation } from "@ace-omni/domain";
-import { createSeededRandom } from "./index";
+
+function createSeededRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296;
+  };
+}
 
 export type VideoManipulationType = "video_lag" | "video_jitter" | "video_freeze";
 
@@ -19,9 +29,7 @@ export function isVideoManipulation(
 }
 
 export interface VideoTimingObservation {
-  /** Call-clock offset when the source frame was captured / received. */
   sourceOffsetMs: number;
-  /** Wall clock when observed. */
   observedAtMs: number;
   frameIndex: number;
 }
@@ -29,11 +37,8 @@ export interface VideoTimingObservation {
 export interface VideoFrameDecision {
   manipulationId: string;
   type: VideoManipulationType;
-  /** Delay to apply before presenting this frame (ms). */
   delayMs: number;
-  /** If true, present the previous held frame instead of the new one. */
   holdPrevious: boolean;
-  /** Effective presentation offset on the call clock. */
   presentOffsetMs: number;
 }
 
@@ -42,18 +47,13 @@ export interface VideoLagParameters {
 }
 
 export interface VideoJitterParameters {
-  /** Mean extra delay in ms. */
   meanDelayMs: number;
-  /** Peak-to-peak spread around the mean (uniform), in ms. */
   jitterMs: number;
-  /** Optional floor so presentation never runs ahead of the source. */
   minDelayMs?: number;
 }
 
 export interface VideoFreezeParameters {
-  /** How long to hold the last good frame when freeze is active. */
   holdMs: number;
-  /** Optional max consecutive held frames (safety). */
   maxHeldFrames?: number;
 }
 
@@ -61,10 +61,6 @@ function num(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-/**
- * Decide presentation timing for one incoming video frame under active
- * schedule windows. Deterministic for a given seed + frameIndex.
- */
 export function decideVideoFrameTiming(
   active: ScheduledManipulation[],
   observation: VideoTimingObservation,
@@ -110,8 +106,6 @@ export function decideVideoFrameTiming(
     }
 
     if (manipulation.type === "video_freeze") {
-      const holdMs = Math.max(1, num(manipulation.parameters.holdMs, 200));
-      // Within an active freeze window, hold every frame (controller enforces duration).
       decisions.push({
         manipulationId: manipulation.id,
         type: "video_freeze",
@@ -119,14 +113,11 @@ export function decideVideoFrameTiming(
         holdPrevious: true,
         presentOffsetMs: observation.sourceOffsetMs,
       });
-      void holdMs;
-      continue;
     }
   }
   return decisions;
 }
 
-/** Collapse multiple decisions into a single present action (max delay wins; any hold sticks). */
 export function composeVideoDecisions(decisions: VideoFrameDecision[]): {
   delayMs: number;
   holdPrevious: boolean;
@@ -151,11 +142,6 @@ export interface VideoTimingControllerHandlers {
   onDecision(frameIndex: number, composed: ReturnType<typeof composeVideoDecisions>): void;
 }
 
-/**
- * Lightweight controller: given a call schedule and participant id, returns
- * active video manipulations and decides timing per frame. Presentation
- * (canvas/video element delay) is left to the call UI.
- */
 export function createVideoTimingController(
   schedule: ExperimentSchedule,
   participantId: string,
