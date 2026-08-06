@@ -68,6 +68,21 @@ flowchart TB
 7. MediaRecorder captures only policy-authorized streams. The Worker binds each one-use upload to its call, participant, artifact type, size, and SHA-256 digest before storing bytes in R2 and metadata in D1.
 8. Finalization produces an immutable manifest connecting the pinned configuration, participants, schedule, events, captions, recordings, checksums, and timestamps. The researcher can inspect, download, export, or replay that exact version.
 
+## Why this is a research instrument
+
+A recording by itself is only media. Omni produces a defensible research record by preserving the complete chain from intended conditions to observed execution:
+
+`immutable experiment digest → pinned call → HMAC-authenticated schedule → ordered acknowledgements and execution times → checksum-verified evidence → immutable manifest → pinned replay`
+
+That chain lets a researcher establish which configuration governed the call, who occupied each role, what each client was instructed to execute, what it reported actually executing, which artifacts were collected, whether their bytes still match, and which exact configuration a replay uses. A later experiment version cannot silently rewrite an earlier call.
+
+Omni also treats every browser as an untrusted execution endpoint. A browser may capture media, apply assigned conditions, and report observations, but it cannot choose its authoritative identity, role, room, experiment version, schedule, event sequence, R2 key, or evidence metadata.
+
+- **Researcher boundary:** opaque server-managed sessions, HttpOnly cookies, SameSite enforcement, exact credentialed origins, Fetch Metadata checks, double-submit CSRF, and ownership checks.
+- **Participant boundary:** call-, version-, role-, and expiration-bound invitations; atomic single redemption; server-assigned identity; and short-lived, one-use room credentials revalidated by the Durable Object.
+- **Room boundary:** same-call signaling targets, authoritative timing, authenticated schedules, assigned-manipulation acknowledgements, ordered events, and persisted hibernation recovery.
+- **Evidence boundary:** owned downloads plus one-use uploads bound to call, participant, artifact type, content type, size, checksum, and a server-selected R2 key.
+
 ## Validated browser views
 
 These captures come from the passing two-context Playwright call using synthetic identities, mock captions, and Chromium fake camera and microphone devices. The green frames are the fake camera feed, not real participant media.
@@ -125,10 +140,13 @@ npm run test:e2e
 
 No production resources are created by these commands. `npm run build` performs a Worker deployment dry run only.
 
-## Government notice
+## Government notice and modification provenance
 
-This software was produced for the U.S. Government under Contract Number 75FCMC18D0047, subject to FAR 52.227-14. See [LICENSE](LICENSE).
+The original ACE Omni notice is preserved in [LICENSE](LICENSE): the software/technical data was produced for the U.S. Government under Contract Number 75FCMC18D0047 and is subject to FAR 52.227-14.
 
-©2024 The MITRE Corporation. Approved for Public Release; Distribution Unlimited 24-0463.
+- **Original MITRE material:** ©2024 The MITRE Corporation. Approved for Public Release; Distribution Unlimited 24-0463.
+- **Cloudflare-native modifications:** 2026, Robert McConnell ([@mcc0nnell](https://github.com/mcc0nnell)), as identified by this repository's Git history.
 
-The Cloudflare-native implementation preserves the original purpose, copyright, government notice, and licensing information. It does not claim to relicense the original work.
+The 24-0463 identifier is reproduced only as part of the original MITRE notice. This repository does not represent it as MITRE review or public-release approval of the later Cloudflare-native modifications. This is not an official MITRE or Federal Communications Commission publication, and no endorsement by MITRE, the FCC, or the U.S. Government is implied.
+
+These provenance statements distinguish the modifications; they do not amend or relicense the original material.
