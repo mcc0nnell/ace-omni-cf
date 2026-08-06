@@ -10,6 +10,8 @@ import {
   type ScheduledManipulation,
 } from "@ace-omni/domain";
 
+export * from "./emulytics";
+
 export interface ScheduleExpansionInput {
   callId: string;
   experimentId: string;
