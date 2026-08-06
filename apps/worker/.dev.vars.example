@@ -1,0 +1,7 @@
+# Copy to .dev.vars for local wrangler
+ENVIRONMENT=development
+SESSION_SECRET=dev-session-secret-change-me-in-prod
+INVITE_SECRET=dev-invite-secret-change-me-in-prod
+# Optional TURN (Cloudflare Realtime) — leave empty for pure P2P local
+# TURN_SECRET=
+# TURN_HOST=

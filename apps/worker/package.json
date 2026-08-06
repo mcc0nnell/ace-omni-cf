@@ -1,0 +1,27 @@
+{
+  "name": "@ace-omni/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --persist-to .wrangler/state",
+    "build": "wrangler deploy --dry-run --outdir=dist",
+    "deploy:dry-run": "wrangler deploy --dry-run",
+    "db:migrate:local": "wrangler d1 migrations apply ace-omni-db --local",
+    "seed:local": "tsx scripts/seed.ts",
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ace-omni/domain": "*",
+    "hono": "^4.6.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241022.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.1",
+    "wrangler": "^3.80.0"
+  }
+}
