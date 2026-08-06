@@ -1,7 +1,6 @@
 /**
  * Idempotent, local-only synthetic seed for ACE Omni.
  * This file is not imported by the Worker production bundle.
- * ©2024 The MITRE Corporation. Approved for Public Release 24-0463.
  */
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";

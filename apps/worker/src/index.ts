@@ -1,4 +1,4 @@
-/** ACE Omni Worker entrypoint. ©2024 The MITRE Corporation. Public Release 24-0463. */
+/** ACE Omni Worker entrypoint. */
 import app from "./app";
 
 export { CallRoom } from "./call-room";
