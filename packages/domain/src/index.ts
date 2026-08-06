@@ -354,6 +354,7 @@ export const CallEventTypeSchema = z.enum([
   "recording_stopped",
   "evidence_uploaded",
   "call_ended",
+  "call_failed",
   "error",
 ]);
 export type CallEventType = z.infer<typeof CallEventTypeSchema>;

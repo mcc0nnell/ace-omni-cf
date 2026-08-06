@@ -12,7 +12,9 @@ Status is evidence-based: “tested” means the path has executed in automation
 | Immutable experiment version and pinned replay | Tested at API/integration level | D1 immutability trigger, call pinning, export/replay routes |
 | Invitation signature, expiry, race, and reuse | Tested | concurrent redemption, modified token, expiry tests |
 | Participant identity and room isolation | Tested | modified access token, cross-call room credential, spoofed message, cross-room signal target |
-| Durable Object hibernation | Tested | live WebSockets evicted and recovered with attachments/state |
+| Reconnect presence integrity | Tested | replaced connection close is suppressed; genuine disconnect records D1 presence and one immutable event |
+| Durable Object hibernation and call timeout | Tested | live WebSockets, authoritative state, and the configured alarm survive eviction; timeout finalizes once |
+| Terminal call-state invariant | Tested | every exercised terminal state either finalizes a manifest or carries an explicit `failed_reason` |
 | Experiment-derived signed schedule | Tested | deterministic engine, runtime identity mapping, HMAC verification |
 | WebRTC audio/video | Tested | two independent Chromium contexts with fake devices |
 | Mock captions | Tested | both contexts exchange and render synthetic captions |

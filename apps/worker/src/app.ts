@@ -166,6 +166,7 @@ interface CallRow {
   started_at: string | null;
   ended_at: string | null;
   duration_ms: number | null;
+  failed_reason: string | null;
   evidence_manifest_key: string | null;
   replay_of_call_id: string | null;
   created_at: string;
@@ -385,7 +386,7 @@ async function getAuthorizedCall(
   return environment.DB.prepare(
     `SELECT id, experiment_id, experiment_version_id, experiment_config_version,
        created_by, name, state, config_snapshot_json, config_sha256, schedule_json,
-       started_at, ended_at, duration_ms, evidence_manifest_key, replay_of_call_id,
+       started_at, ended_at, duration_ms, failed_reason, evidence_manifest_key, replay_of_call_id,
        created_at, updated_at
      FROM calls
      WHERE id = ? AND (? = 'administrator' OR created_by = ?)`,
@@ -908,7 +909,7 @@ app.post("/api/invitations/redeem", async (context) => {
   const call = await context.env.DB.prepare(
     `SELECT id, experiment_id, experiment_version_id, experiment_config_version,
        created_by, name, state, config_snapshot_json, config_sha256, schedule_json,
-       started_at, ended_at, duration_ms, evidence_manifest_key, replay_of_call_id,
+       started_at, ended_at, duration_ms, failed_reason, evidence_manifest_key, replay_of_call_id,
        created_at, updated_at
      FROM calls WHERE id = ? AND experiment_id = ? AND experiment_version_id = ?`,
   )
@@ -1138,6 +1139,7 @@ app.get("/api/calls/:id", requireResearcher, async (context) => {
       startedAt: call.started_at,
       endedAt: call.ended_at,
       durationMs: call.duration_ms,
+      failedReason: call.failed_reason,
       replayOfCallId: call.replay_of_call_id,
       evidenceManifestKey: call.evidence_manifest_key,
       createdAt: call.created_at,
@@ -1166,7 +1168,7 @@ app.get("/api/experiments/:id/calls", requireResearcher, async (context) => {
   const calls = await context.env.DB.prepare(
     `SELECT id, experiment_id, experiment_version_id, experiment_config_version,
        created_by, name, state, config_snapshot_json, config_sha256, schedule_json,
-       started_at, ended_at, duration_ms, evidence_manifest_key, replay_of_call_id,
+       started_at, ended_at, duration_ms, failed_reason, evidence_manifest_key, replay_of_call_id,
        created_at, updated_at
      FROM calls WHERE experiment_id = ? ORDER BY created_at DESC`,
   ).bind(experimentId).all<CallRow>();
@@ -1179,6 +1181,7 @@ app.get("/api/experiments/:id/calls", requireResearcher, async (context) => {
       experimentConfigVersion: call.experiment_config_version,
       startedAt: call.started_at,
       endedAt: call.ended_at,
+      failedReason: call.failed_reason,
       artifactManifestKey: call.evidence_manifest_key,
       createdAt: call.created_at,
     })),
@@ -1413,6 +1416,13 @@ app.post("/api/calls/:id/finalize", requireResearcher, requireCsrf, async (conte
      FROM evidence_manifests WHERE call_id = ?`,
   ).bind(call.id).first<ManifestRow>();
   if (existing) return context.json({ manifest: EvidenceManifestSchema.parse(JSON.parse(existing.manifest_json)) });
+  if (call.state === "failed") {
+    return context.json({
+      error: "Call failed before a finalizable evidence record could be completed",
+      code: "CALL_FAILED",
+      failedReason: call.failed_reason ?? "unspecified_failure",
+    }, 422);
+  }
   if (call.state !== "ended" || !call.started_at || !call.ended_at || call.duration_ms === null || !call.schedule_json) {
     return context.json({ error: "Call lifecycle is not complete" }, 409);
   }

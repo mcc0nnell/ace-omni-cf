@@ -39,6 +39,13 @@ Production startup rejects missing, short, or recognizable development placehold
 - WebSocket signaling can target only a currently connected participant in the same per-call object.
 - SDP and ICE bodies are relayed but not persisted; event storage records only type, actor, target, sequence, and timing.
 
+## Call lifecycle integrity
+
+- The Durable Object's connection ID is authoritative for presence. A close from a socket replaced by an authorized reconnect cannot write D1 `left_at`, append `participant_left`, or broadcast a departure; a genuine close can do those things exactly once.
+- A call can become `ended` only from `active`. A pre-start `end_call` instead creates an explicit `failed` terminal state, stable `failed_reason`, and immutable `call_failed` event. Finalization reports that failure distinctly rather than presenting it as an incomplete lifecycle.
+- When the authoritative call clock starts, the room persists one alarm at the exact pinned `callTimeoutSec` deadline. A timeout is attributed to the system, records `reason: call_timeout`, and produces a normally finalizable ended call. Normal termination clears the alarm, and duplicate delivery is idempotent.
+- Integration tests enforce the research-integrity invariant directly: every exercised terminal state either produces a valid evidence manifest or carries a failure reason.
+
 ## Dependency integrity
 
 - External versions and npm's integrity hashes are locked; clean checkout uses `npm ci`.
