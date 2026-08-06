@@ -1,0 +1,39 @@
+ACE Omni (Cloudflare-native) — provenance of modifications
+
+Original work
+-------------
+
+This repository is derived from MITRE ACE Omni:
+https://github.com/mitrefccace/ace-omni
+
+The original government, contract, copyright, and public-release notice is
+preserved verbatim in LICENSE. It identifies Contract Number 75FCMC18D0047,
+FAR 52.227-14, ©2024 The MITRE Corporation, and public-release identifier
+24-0463.
+
+Later modifications
+-------------------
+
+The Cloudflare-native rewrite began on 2026-08-05. Its changes are attributed
+by this repository's Git history to Robert McConnell, the repository owner and
+maintainer. They include a React/Vite web application, a Hono API on Cloudflare
+Workers, D1 relational state, per-call Durable Objects, R2 evidence storage,
+shared versioned schemas, deterministic scheduling and media manipulation,
+security controls, automated tests, and project documentation.
+
+The later modifications are not presented as work authored, reviewed,
+approved, or published by MITRE, the Federal Communications Commission, or
+the United States Government. No endorsement by those organizations is
+implied.
+
+Publication basis and limits
+----------------------------
+
+The repository preserves and points to MITRE's public GitHub publication and
+the original notice's statement, "Approved for Public Release; Distribution
+Unlimited 24-0463." That identifier is reported only as provenance for the
+original material. It is not represented as a separate public-release review,
+copyright permission, or other authorization for the later modifications.
+
+This file documents repository provenance; it is not a legal opinion. The Git
+history is the authoritative record of who changed each file and when.
