@@ -1,0 +1,77 @@
+name: clean-checkout-validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ace-omni-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      WRANGLER_SEND_METRICS: "false"
+      XDG_CONFIG_HOME: /tmp/ace-omni-xdg-ci
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use supported Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Reject NUL-corrupted tracked source
+        run: npm run check:integrity
+
+      - name: Install from lockfile
+        run: npm ci
+
+      - name: Reject known dependency vulnerabilities
+        run: npm run audit:dependencies
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Apply migrations and seed isolated synthetic data
+        run: npm run test:e2e:prepare
+
+      - name: Verify generated Worker binding types
+        run: npm run types:check --workspace=apps/worker
+
+      - name: Typecheck every workspace
+        run: npm run typecheck
+
+      - name: Build web assets and dry-run the Worker bundle
+        run: npm run build
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run Worker, D1, R2, and Durable Object integration tests
+        run: npm run test:integration
+
+      - name: Run two-context synthetic-media vertical slice
+        run: npm run test:e2e --workspace=packages/test-support
+
+      - name: Preserve browser screenshots, traces, and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ace-omni-browser-validation-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            test-results/playwright
+            packages/test-support/playwright-report

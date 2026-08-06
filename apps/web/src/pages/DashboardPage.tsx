@@ -1,80 +1,101 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { api } from "../lib/api";
+import type { ExperimentConfig } from "@ace-omni/domain";
+import { api, type ExperimentSummary, type User } from "../lib/api";
 
-export default function DashboardPage({ user }: { user: any }) {
-  const [experiments, setExperiments] = useState<any[]>([]);
+function verticalSliceConfig(): ExperimentConfig {
+  return {
+    version: 1,
+    trsType: "IP_CTS",
+    participants: [
+      {
+        id: crypto.randomUUID(),
+        name: "Synthetic caller",
+        role: "caller",
+        captions: { engine: "mock", baseDelayMs: 150, showFinalizedOnly: false },
+        media: { audio: true, video: true },
+      },
+      {
+        id: crypto.randomUUID(),
+        name: "Synthetic callee",
+        role: "callee",
+        captions: { engine: "mock", baseDelayMs: 0, showFinalizedOnly: true },
+        media: { audio: true, video: true },
+      },
+    ],
+    timing: {
+      callTimeoutSec: 120,
+      mockCaptionIntervalMs: 1_500,
+      scheduleLeadMs: 500,
+    },
+    manipulations: [
+      {
+        id: "caption-delay-caller",
+        type: "caption_delay",
+        targetRole: "caller",
+        targetStream: "captions",
+        startOffsetMs: 2_000,
+        durationMs: 5_000,
+        parameters: { delayMs: 500 },
+        seed: 20_260_806,
+      },
+      {
+        id: "outgoing-gain-callee",
+        type: "gain",
+        targetRole: "callee",
+        targetStream: "outgoing",
+        startOffsetMs: 3_000,
+        durationMs: 4_000,
+        parameters: { gainDb: -9 },
+        seed: 20_260_807,
+      },
+    ],
+    evidencePolicy: {
+      microphoneAudio: true,
+      receivedAudio: false,
+      manipulatedAudio: false,
+      localVideo: false,
+      remoteVideo: false,
+      rawCaptions: false,
+      displayedCaptions: false,
+      experimentEvents: true,
+      maxArtifactBytes: 25 * 1024 * 1024,
+      retentionDays: 365,
+    },
+    mockAsr: {
+      utterances: [
+        "This is synthetic speech for the ACE Omni relay experiment.",
+        "The authoritative schedule controls this caption condition.",
+        "No real participant data is used in this laboratory run.",
+      ],
+    },
+  };
+}
+
+export default function DashboardPage({ user }: { user: User }) {
+  const [experiments, setExperiments] = useState<ExperimentSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
+  const refresh = () => api.listExperiments().then((response) => setExperiments(response.experiments));
+
   useEffect(() => {
-    api
-      .listExperiments()
-      .then((r) => setExperiments(r.experiments))
-      .catch((e) => setError(e.message));
+    refresh().catch((reason: Error) => setError(reason.message));
   }, []);
 
   async function createSample() {
     setCreating(true);
     setError(null);
     try {
-      const config = {
-        version: 1,
-        trsType: "IP_CTS",
-        participants: [
-          {
-            id: "p1",
-            name: "Caller",
-            role: "caller",
-            audioStream: {
-              backgroundNoise: { enabled: true, source: "white", gainDb: -15 },
-              packetDrop: { enabled: false },
-              filter: { enabled: false },
-            },
-            captions: {
-              engine: "mock",
-              showFinalizedOnly: false,
-              punctuation: true,
-              captionDelayMs: 600,
-            },
-          },
-          {
-            id: "p2",
-            name: "Callee",
-            role: "callee",
-            audioStream: {
-              backgroundNoise: { enabled: false },
-              packetDrop: { enabled: true, durationMs: 250, intervalMs: 7000 },
-              filter: { enabled: false },
-            },
-            captions: {
-              engine: "mock",
-              showFinalizedOnly: true,
-              punctuation: true,
-              captionDelayMs: 0,
-            },
-          },
-        ],
-        dataCollection: {
-          transcripts: { asrCaptionStream: true, rawAsr: true },
-          audioRecordings: { microphone: true, received: true, manipulated: true },
-          videoRecordings: { local: false, remote: false },
-          screenRecordings: { enabled: false },
-          experimentEvents: true,
-        },
-        callTimeoutSec: 600,
-      };
       await api.createExperiment({
-        name: `IP CTS Study ${new Date().toLocaleString()}`,
-        alias: `ip-cts-${Date.now().toString(36)}`,
-        description: "Deterministic caption delay + background noise experiment",
-        purpose: "Vertical-slice demonstration of Omni research workflow",
-        config,
+        name: `Synthetic IP CTS study ${new Date().toISOString()}`,
+        alias: `ip-cts-${crypto.randomUUID().slice(0, 8)}`,
+        description: "Deterministic caption delay and audio gain conditions with mock ASR.",
+        purpose: "Exercise the secure, auditable Omni vertical slice using synthetic media.",
+        config: verticalSliceConfig(),
       });
-      const list = await api.listExperiments();
-      setExperiments(list.experiments);
-    } catch (e: any) {
-      setError(e.message);
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setCreating(false);
     }
@@ -82,69 +103,37 @@ export default function DashboardPage({ user }: { user: any }) {
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "1.5rem",
-        }}
-      >
-        <h1 style={{ margin: 0 }}>Experiments</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+        <div>
+          <h1 style={{ margin: 0 }}>Experiments</h1>
+          <p style={{ color: "var(--muted)", marginBottom: 0 }}>
+            Signed in as {user.displayName}. All runs pin an immutable configuration version.
+          </p>
+        </div>
         <button
           type="button"
+          data-testid="create-experiment"
           onClick={createSample}
           disabled={creating}
-          style={{
-            padding: "0.55rem 1rem",
-            borderRadius: 6,
-            border: "none",
-            background: "var(--accent)",
-            color: "#fff",
-            fontWeight: 600,
-            cursor: creating ? "wait" : "pointer",
-          }}
+          style={{ padding: "0.55rem 1rem", borderRadius: 6, border: "none", background: "var(--accent)", color: "#fff", fontWeight: 600 }}
         >
-          {creating ? "Creating…" : "New sample experiment"}
+          {creating ? "Creating…" : "Create synthetic experiment"}
         </button>
       </div>
 
-      {error && (
-        <div role="alert" style={{ marginBottom: "1rem", color: "var(--danger)" }}>
-          {error}
-        </div>
-      )}
+      {error && <div role="alert" style={{ marginBottom: "1rem", color: "var(--danger)" }}>{error}</div>}
 
       {experiments.length === 0 ? (
-        <p style={{ color: "var(--muted)" }}>
-          No experiments yet. Create a sample to begin the vertical slice.
-        </p>
+        <p style={{ color: "var(--muted)" }}>No experiments yet.</p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.75rem" }}>
-          {experiments.map((exp) => (
-            <li
-              key={exp.id}
-              style={{
-                padding: "1rem 1.25rem",
-                background: "var(--panel)",
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-              }}
-            >
-              <Link
-                to={`/experiments/${exp.id}`}
-                style={{
-                  textDecoration: "none",
-                  color: "inherit",
-                  fontWeight: 600,
-                  fontSize: "1.05rem",
-                }}
-              >
-                {exp.name}
-              </Link>
+        <ul data-testid="experiment-list" style={{ listStyle: "none", padding: 0, display: "grid", gap: "0.75rem" }}>
+          {experiments.map((experiment) => (
+            <li key={experiment.id} style={{ padding: "1rem 1.25rem", background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8 }}>
+              <a href={`/experiments/${experiment.id}`} style={{ textDecoration: "none", color: "inherit", fontWeight: 600 }}>
+                {experiment.name}
+              </a>
               <div style={{ marginTop: 4, fontSize: "0.85rem", color: "var(--muted)" }}>
-                {exp.alias} · {exp.phase} · {exp.config?.trsType ?? "CUSTOM"} ·{" "}
-                {exp.config?.participants?.length ?? 0} participants
+                {experiment.alias} · version {experiment.currentVersion} · {experiment.config.trsType}
               </div>
             </li>
           ))}

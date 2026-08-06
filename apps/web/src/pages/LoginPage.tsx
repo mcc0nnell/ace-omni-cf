@@ -2,8 +2,8 @@ import { useState, FormEvent } from "react";
 import { api } from "../lib/api";
 
 export default function LoginPage({ onLogin }: { onLogin: (u: any) => void }) {
-  const [email, setEmail] = useState("admin@omni.local");
-  const [password, setPassword] = useState("omni-admin-2026");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -103,7 +103,8 @@ export default function LoginPage({ onLogin }: { onLogin: (u: any) => void }) {
         </button>
       </form>
       <p style={{ marginTop: "1.5rem", fontSize: "0.85rem", color: "var(--muted)" }}>
-        Local demo credentials are pre-filled. Seed with <code>npm run seed:local</code>.
+        Local-only synthetic accounts can be created with <code>npm run seed:local</code>.
+        No credentials are embedded in the production web bundle.
       </p>
     </div>
   );
