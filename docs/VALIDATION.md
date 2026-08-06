@@ -1,7 +1,5 @@
 # Validation record
 
-©2024 The MITRE Corporation. Approved for Public Release 24-0463.
-
 This record describes the clean-checkout validation executed on 2026-08-06. No production resource was created or modified. Test calls used synthetic identities, mock captions, and Chromium fake camera/microphone devices.
 
 ## Reproducibility and static gates

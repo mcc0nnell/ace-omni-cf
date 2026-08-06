@@ -1,7 +1,5 @@
 # Implementation and validation status
 
-©2024 The MITRE Corporation. Approved for Public Release 24-0463.
-
 Status is evidence-based: “tested” means the path has executed in automation, not merely compiled.
 
 | Capability | Status | Executed evidence |

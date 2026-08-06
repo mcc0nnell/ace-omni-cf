@@ -1,7 +1,5 @@
 # Security boundaries and operations
 
-©2024 The MITRE Corporation. Approved for Public Release 24-0463.
-
 ## Identity and authorization
 
 - Researcher sessions use random bearer cookies; D1 stores only SHA-256 token hashes. Cookies are HttpOnly, Secure in production, SameSite Strict, and scoped to `/`.

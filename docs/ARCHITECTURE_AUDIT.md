@@ -1,10 +1,8 @@
 # ACE Omni architectural audit
 
-©2024 The MITRE Corporation. Approved for Public Release 24-0463.
-
 ## Material inspected
 
-The resurrection started from fresh clones of both repositories. The target was inspected at `eb2d06b` (with the unmerged documentation branch at `adc9819`); the MITRE reference was inspected at its available snapshot and full reachable history. The audit covered every tracked target file, both Git histories, D1 schema, Worker configuration, UI routes, package manifests, reference MongoDB models, Socket.IO/WebRTC paths, caption configuration, recordings, manipulation configuration, notices, and licenses. `git fsck` and a tracked-source NUL scan were clean in both fresh clones.
+The resurrection started from fresh clones of both repositories. The target was inspected at `eb2d06b` (with the unmerged documentation branch at `adc9819`); the upstream reference was inspected at its available snapshot and full reachable history. The audit covered every tracked target file, both Git histories, D1 schema, Worker configuration, UI routes, package manifests, reference MongoDB models, Socket.IO/WebRTC paths, caption configuration, recordings, manipulation configuration, notices, and licenses. `git fsck` and a tracked-source NUL scan were clean in both fresh clones.
 
 The scaffold baseline had 34 tracked files and no lockfile, automated tests, or CI. `npm ci` therefore failed before implementation, which established the first reproducibility acceptance criterion.
 
