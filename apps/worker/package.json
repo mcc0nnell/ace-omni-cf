@@ -4,24 +4,23 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --local --persist-to .wrangler/state",
-    "build": "wrangler deploy --dry-run --outdir=dist",
-    "deploy:dry-run": "wrangler deploy --dry-run",
-    "db:migrate:local": "wrangler d1 migrations apply ace-omni-db --local",
-    "seed:local": "tsx scripts/seed.ts",
+    "dev": "wrangler dev --local --persist-to .wrangler/state --port 8787",
+    "dev:e2e": "CI=true WRANGLER_SEND_METRICS=false XDG_CONFIG_HOME=/tmp/ace-omni-xdg-e2e wrangler dev --local --persist-to .wrangler/e2e --ip 127.0.0.1 --port 8787",
+    "build": "CI=true WRANGLER_SEND_METRICS=false XDG_CONFIG_HOME=/tmp/ace-omni-xdg-build wrangler deploy --dry-run --env=\"\" --outdir=dist",
+    "deploy:dry-run": "CI=true WRANGLER_SEND_METRICS=false XDG_CONFIG_HOME=/tmp/ace-omni-xdg-build wrangler deploy --dry-run --env=\"\"",
+    "db:migrate:local": "CI=true WRANGLER_SEND_METRICS=false XDG_CONFIG_HOME=/tmp/ace-omni-xdg-local wrangler d1 migrations apply ace-omni-db --local",
+    "seed:local": "node --import tsx scripts/seed.ts --local",
+    "types": "CI=true WRANGLER_SEND_METRICS=false XDG_CONFIG_HOME=/tmp/ace-omni-xdg-types wrangler types src/worker-configuration.d.ts",
+    "types:check": "CI=true WRANGLER_SEND_METRICS=false XDG_CONFIG_HOME=/tmp/ace-omni-xdg-types wrangler types src/worker-configuration.d.ts --check",
+    "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --config vitest.config.ts",
+    "test:integration": "CI=true WRANGLER_SEND_METRICS=false XDG_CONFIG_HOME=/tmp/ace-omni-xdg-test vitest run --config vitest.integration.config.ts --max-workers=1 test/api-security.test.ts && CI=true WRANGLER_SEND_METRICS=false XDG_CONFIG_HOME=/tmp/ace-omni-xdg-test vitest run --config vitest.integration.config.ts --max-workers=1 --no-isolate test/call-room.integration.test.ts"
   },
   "dependencies": {
     "@ace-omni/domain": "*",
-    "hono": "^4.6.3",
-    "zod": "^3.23.8"
-  },
-  "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241022.0",
-    "tsx": "^4.19.1",
-    "typescript": "^5.6.3",
-    "vitest": "^2.1.1",
-    "wrangler": "^3.80.0"
+    "@ace-omni/experiment-engine": "*",
+    "hono": "4.13.0",
+    "zod": "3.25.76"
   }
 }

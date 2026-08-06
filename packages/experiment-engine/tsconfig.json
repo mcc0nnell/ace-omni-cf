@@ -1,0 +1,7 @@
+{
+  "extends": "../domain/tsconfig.json",
+  "compilerOptions": {
+    "declaration": false
+  },
+  "include": ["src"]
+}

@@ -2,11 +2,15 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ace-omni",
   "main": "src/index.ts",
-  "compatibility_date": "2024-09-23",
+  "compatibility_date": "2026-08-06",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "vars": {
-    "ENVIRONMENT": "development"
+    "ENVIRONMENT": "development",
+    "ALLOWED_ORIGINS": "http://127.0.0.1:8787,http://localhost:8787,http://127.0.0.1:5173,http://localhost:5173"
+  },
+  "secrets": {
+    "required": ["SESSION_SECRET", "TOKEN_SIGNING_SECRET", "SCHEDULE_SIGNING_SECRET"]
   },
   "d1_databases": [
     {
@@ -34,12 +38,52 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_classes": ["CallRoom"]
+      "new_sqlite_classes": ["CallRoom"]
     }
   ],
   "assets": {
     "directory": "../web/dist",
     "binding": "ASSETS",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.05 }
+  },
+  "env": {
+    "production": {
+      "name": "ace-omni-production",
+      "vars": {
+        "ENVIRONMENT": "production",
+        "ALLOWED_ORIGINS": "https://omni.example.invalid"
+      },
+      "secrets": {
+        "required": ["SESSION_SECRET", "TOKEN_SIGNING_SECRET", "SCHEDULE_SIGNING_SECRET"]
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "ace-omni-db-production",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "../../migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "EVIDENCE",
+          "bucket_name": "ace-omni-evidence-production"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "CALL_ROOM",
+            "class_name": "CallRoom"
+          }
+        ]
+      }
+    }
   }
 }

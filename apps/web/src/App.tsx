@@ -1,4 +1,3 @@
-import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { api } from "./lib/api";
 import LoginPage from "./pages/LoginPage";
@@ -6,13 +5,15 @@ import DashboardPage from "./pages/DashboardPage";
 import ExperimentPage from "./pages/ExperimentPage";
 import JoinPage from "./pages/JoinPage";
 import CallPage from "./pages/CallPage";
+import ResearchCallPage from "./pages/ResearchCallPage";
+import type { User } from "./lib/api";
 
 function Shell({
   user,
   onLogout,
   children,
 }: {
-  user: any;
+  user: User | null;
   onLogout: () => void;
   children: React.ReactNode;
 }) {
@@ -29,8 +30,8 @@ function Shell({
           background: "var(--panel)",
         }}
       >
-        <Link
-          to="/"
+        <a
+          href="/"
           style={{
             textDecoration: "none",
             color: "inherit",
@@ -39,7 +40,7 @@ function Shell({
           }}
         >
           ACE Omni
-        </Link>
+        </a>
         <nav aria-label="Primary">
           {user ? (
             <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
@@ -81,11 +82,22 @@ function Shell({
   );
 }
 
+function Redirect({ to }: { to: string }) {
+  useEffect(() => {
+    window.location.replace(to);
+  }, [to]);
+  return <p role="status">Redirecting…</p>;
+}
+
 export default function App() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (window.location.pathname === "/join" || window.location.pathname.startsWith("/call/")) {
+      setLoading(false);
+      return;
+    }
     api
       .me()
       .then((r) => setUser(r.user))
@@ -106,47 +118,46 @@ export default function App() {
     );
   }
 
-  return (
-    <Routes>
-      <Route
-        path="/login"
-        element={
-          user ? (
-            <Navigate to="/" replace />
-          ) : (
-            <Shell user={null} onLogout={handleLogout}>
-              <LoginPage onLogin={setUser} />
-            </Shell>
-          )
-        }
-      />
-      <Route
-        path="/"
-        element={
-          user ? (
-            <Shell user={user} onLogout={handleLogout}>
-              <DashboardPage user={user} />
-            </Shell>
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
-      <Route
-        path="/experiments/:id"
-        element={
-          user ? (
-            <Shell user={user} onLogout={handleLogout}>
-              <ExperimentPage />
-            </Shell>
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
-      <Route path="/join/:token" element={<JoinPage />} />
-      <Route path="/call/:callId" element={<CallPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  );
+  const path = window.location.pathname;
+  if (path === "/join") return <JoinPage />;
+
+  const participantCall = path.match(/^\/call\/([^/]+)$/);
+  if (participantCall) return <CallPage callId={participantCall[1]} />;
+
+  if (path === "/login") {
+    return user ? <Redirect to="/" /> : (
+      <Shell user={null} onLogout={handleLogout}>
+        <LoginPage onLogin={setUser} />
+      </Shell>
+    );
+  }
+
+  if (!user) return <Redirect to="/login" />;
+  if (path === "/") {
+    return (
+      <Shell user={user} onLogout={handleLogout}>
+        <DashboardPage user={user} />
+      </Shell>
+    );
+  }
+
+  const experiment = path.match(/^\/experiments\/([^/]+)$/);
+  if (experiment) {
+    return (
+      <Shell user={user} onLogout={handleLogout}>
+        <ExperimentPage id={experiment[1]} />
+      </Shell>
+    );
+  }
+
+  const researchCall = path.match(/^\/research\/calls\/([^/]+)$/);
+  if (researchCall) {
+    return (
+      <Shell user={user} onLogout={handleLogout}>
+        <ResearchCallPage callId={researchCall[1]} />
+      </Shell>
+    );
+  }
+
+  return <Redirect to="/" />;
 }

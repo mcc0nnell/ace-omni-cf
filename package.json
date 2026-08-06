@@ -8,19 +8,39 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=apps/worker & npm run dev --workspace=apps/web",
+    "check:integrity": "node scripts/check-source-integrity.mjs",
+    "audit:dependencies": "npm audit --audit-level=moderate",
+    "dev": "npm-run-all --parallel dev:worker dev:web",
     "dev:worker": "npm run dev --workspace=apps/worker",
     "dev:web": "npm run dev --workspace=apps/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "test:e2e": "npm run test:e2e --workspace=packages/test-support",
+    "test:integration": "npm run test:integration --workspace=apps/worker",
+    "test:e2e:prepare": "node scripts/prepare-e2e.mjs",
+    "test:e2e": "npm run test:e2e:prepare && npm run test:e2e --workspace=packages/test-support",
     "db:migrate:local": "npm run db:migrate:local --workspace=apps/worker",
     "seed:local": "npm run seed:local --workspace=apps/worker",
     "deploy:dry-run": "npm run deploy:dry-run --workspace=apps/worker"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.14"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.20.2",
+    "@playwright/test": "1.62.1",
+    "@types/node": "24.1.0",
+    "npm-run-all2": "8.0.4",
+    "tsx": "4.23.8",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10",
+    "wrangler": "4.119.0"
+  },
+  "overrides": {
+    "miniflare": {
+      "undici": "7.29.0"
+    }
   },
   "license": "SEE LICENSE IN LICENSE"
 }
