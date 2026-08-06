@@ -119,6 +119,9 @@ export const ManipulationTypeSchema = z.enum([
   "caption_dropout",
   "caption_error",
   "gain",
+  "video_lag",
+  "video_jitter",
+  "video_freeze",
 ]);
 export type ManipulationType = z.infer<typeof ManipulationTypeSchema>;
 
@@ -126,7 +129,7 @@ export const ManipulationDefinitionSchema = z.object({
   id: StableIdSchema,
   type: ManipulationTypeSchema,
   targetRole: z.enum(["caller", "callee", "both"]),
-  targetStream: z.enum(["incoming", "outgoing", "captions"]),
+  targetStream: z.enum(["incoming", "outgoing", "captions", "video"]),
   startOffsetMs: z.number().int().min(0).max(3_600_000),
   durationMs: z.number().int().min(1).max(3_600_000),
   parameters: z.record(z.unknown()).default({}),
@@ -214,11 +217,25 @@ export const ExperimentConfigSchema = z
           message: "Caption manipulations must target the caption stream",
         });
       }
+      if (manipulation.type.startsWith("video_") && manipulation.targetStream !== "video") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["manipulations", index, "targetStream"],
+          message: "Video manipulations must target the video stream",
+        });
+      }
       if (!manipulation.type.startsWith("caption_") && manipulation.targetStream === "captions") {
         context.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["manipulations", index, "targetStream"],
-          message: "Audio manipulations cannot target the caption stream",
+          message: "Non-caption manipulations cannot target the caption stream",
+        });
+      }
+      if (!manipulation.type.startsWith("video_") && manipulation.targetStream === "video") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["manipulations", index, "targetStream"],
+          message: "Non-video manipulations cannot target the video stream",
         });
       }
     });
@@ -309,7 +326,7 @@ export const ScheduledManipulationSchema = z.object({
   type: ManipulationTypeSchema,
   targetParticipantId: z.string().uuid(),
   targetRole: z.enum(["caller", "callee"]),
-  targetStream: z.enum(["incoming", "outgoing", "captions"]),
+  targetStream: z.enum(["incoming", "outgoing", "captions", "video"]),
   startOffsetMs: z.number().int().min(0).max(3_600_000),
   durationMs: z.number().int().positive().max(3_600_000),
   parameters: z.record(z.unknown()),
