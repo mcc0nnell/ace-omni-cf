@@ -6,6 +6,7 @@ import {
   deduplicateObservationEnvelopes,
   digestExecutionPlan,
   type ExperimentRun,
+  type ObservationEnvelope,
   type PlannedCommandDefinition,
 } from "./emulytics";
 
@@ -69,6 +70,27 @@ describe("Emulytics experiment protocol", () => {
     expect(await digestExecutionPlan(second)).toBe(await digestExecutionPlan(first));
   });
 
+  it("copies command parameters into the immutable compiled plan", () => {
+    const mutableParameters = { nested: { enabled: true } };
+    const plan = compileExecutionPlan({
+      run: baseRun(),
+      planRevision: 1,
+      commands: [
+        {
+          id: "copy-check",
+          adapterId: "synthetic-loopback",
+          capability: "custom",
+          scheduledOffsetMs: 0,
+          operation: "copy_check",
+          parameters: mutableParameters,
+        },
+      ],
+    });
+
+    mutableParameters.nested.enabled = false;
+    expect(plan.commands[0]!.parameters).toEqual({ nested: { enabled: true } });
+  });
+
   it("rejects a command when an adapter did not declare the required capability", () => {
     expect(() =>
       compileExecutionPlan({
@@ -87,7 +109,7 @@ describe("Emulytics experiment protocol", () => {
     ).toThrow(/does not declare/);
   });
 
-  it("deduplicates identical replayed observations and rejects conflicting reuse of an id", async () => {
+  it("deduplicates exact observation replays and rejects timestamp or payload mutation", async () => {
     const original = await createObservationEnvelope({
       observationId: "sensor-0001",
       runId: "run-001",
@@ -96,18 +118,29 @@ describe("Emulytics experiment protocol", () => {
       observedAt: "2026-08-06T23:00:01.000Z",
       payload: { state: "up", latencyMs: 12 },
     });
-    const replay = { ...original, observedAt: "2026-08-06T23:00:02.000Z" };
-    const conflict = await createObservationEnvelope({
+    const replay = { ...original };
+    const timestampConflict = { ...original, observedAt: "2026-08-06T23:00:02.000Z" };
+    const payloadConflict = await createObservationEnvelope({
       observationId: "sensor-0001",
       runId: "run-001",
       adapterId: "network-lab",
       sourceId: "sensor-a",
-      observedAt: "2026-08-06T23:00:03.000Z",
+      observedAt: "2026-08-06T23:00:01.000Z",
       payload: { state: "down", latencyMs: 12 },
+    });
+    const otherSource = await createObservationEnvelope({
+      observationId: "sensor-0001",
+      runId: "run-001",
+      adapterId: "network-lab",
+      sourceId: "sensor-b",
+      observedAt: "2026-08-06T23:00:01.000Z",
+      payload: { state: "up", latencyMs: 12 },
     });
 
     expect(deduplicateObservationEnvelopes([original, replay])).toEqual([original]);
-    expect(() => deduplicateObservationEnvelopes([original, conflict])).toThrow(/conflicting replay/);
+    expect(deduplicateObservationEnvelopes([original, otherSource])).toEqual([original, otherSource]);
+    expect(() => deduplicateObservationEnvelopes([original, timestampConflict])).toThrow(/conflicting replay/);
+    expect(() => deduplicateObservationEnvelopes([original, payloadConflict])).toThrow(/conflicting replay/);
   });
 
   it("provides a synthetic adapter that proves prepare-start-command-observe-stop", async () => {
@@ -124,7 +157,7 @@ describe("Emulytics experiment protocol", () => {
     await adapter.prepare(plan.run);
     await adapter.start(plan);
     await adapter.command(plan.commands[0]!);
-    const observations = [];
+    const observations: ObservationEnvelope[] = [];
     for await (const observation of adapter.observe()) {
       observations.push(observation);
     }
