@@ -511,7 +511,8 @@ export class CallRoom extends DurableObject<WorkerEnv> {
 
   async webSocketClose(socket: WebSocket): Promise<void> {
     const attachment = this.attachment(socket);
-    if (!attachment) return;
+    const meta = this.readMeta();
+    if (!attachment || !meta || meta.state === "ended" || meta.state === "failed") return;
     const now = Date.now();
     const authoritativeClose = this.ctx.storage.sql.exec<{ participant_id: string }>(
       `UPDATE participants SET left_at_ms = ?
@@ -527,7 +528,7 @@ export class CallRoom extends DurableObject<WorkerEnv> {
       `UPDATE call_participants SET left_at = ?
        WHERE call_id = ? AND id = ?`,
     )
-      .bind(new Date(now).toISOString(), this.requireMeta().call_id, attachment.participantId)
+      .bind(new Date(now).toISOString(), meta.call_id, attachment.participantId)
       .run();
     await this.recordEvent("participant_left", attachment.participantId, {
       connectionId: attachment.connectionId,

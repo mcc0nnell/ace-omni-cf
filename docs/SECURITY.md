@@ -41,7 +41,7 @@ Production startup rejects missing, short, or recognizable development placehold
 
 ## Call lifecycle integrity
 
-- The Durable Object's connection ID is authoritative for presence. A close from a socket replaced by an authorized reconnect cannot write D1 `left_at`, append `participant_left`, or broadcast a departure; a genuine close can do those things exactly once.
+- The Durable Object's connection ID is authoritative for presence. A close from a socket replaced by an authorized reconnect cannot write D1 `left_at`, append `participant_left`, or broadcast a departure; a genuine close can do those things exactly once. Socket closure after a terminal transition cannot append events beyond the finalized manifest boundary.
 - A call can become `ended` only from `active`. A pre-start `end_call` instead creates an explicit `failed` terminal state, stable `failed_reason`, and immutable `call_failed` event. Finalization reports that failure distinctly rather than presenting it as an incomplete lifecycle.
 - When the authoritative call clock starts, the room persists one alarm at the exact pinned `callTimeoutSec` deadline. A timeout is attributed to the system, records `reason: call_timeout`, and produces a normally finalizable ended call. Normal termination clears the alarm, and duplicate delivery is idempotent.
 - Integration tests enforce the research-integrity invariant directly: every exercised terminal state either produces a valid evidence manifest or carries a failure reason.

@@ -329,9 +329,9 @@ async function expectTerminalStateAccountedFor(
 }
 
 describe("authoritative call Durable Object", () => {
-  it("ignores a replaced connection close but records a genuine disconnect", async () => {
+  it("keeps a replacement reconnect contiguous in D1 and the finalized manifest", async () => {
     const session = await login();
-    const experimentId = await createExperiment(session);
+    const experimentId = await createExperiment(session, noArtifactConfig);
     const callId = await createCall(session, experimentId);
     const participants = await redeemCall(session, callId);
     const caller = participants.find((participant) => participant.role === "caller")!;
@@ -363,7 +363,53 @@ describe("authoritative call Durable Object", () => {
       connectedParticipantIds: expect.arrayContaining([caller.participantId, callee.participantId]),
     });
 
-    await replacementCallerSocket.close();
+    replacementCallerSocket.socket.send(JSON.stringify({
+      type: "end_call",
+      clientClockMs: Date.now(),
+    }));
+    await calleeSocket.next("call_ended");
+    const finalize = await fetchApi(`/api/calls/${callId}/finalize`, {
+      method: "POST",
+      headers: researcherHeaders(session),
+    });
+    expect(finalize.status).toBe(201);
+    const finalized = await finalize.json<{
+      manifest: {
+        participants: Array<{ id: string; joinedAt: string | null; leftAt: string | null }>;
+        events: Array<{ type: string; participantId: string | null }>;
+      };
+    }>();
+    expect(finalized.manifest.participants.find((item) => item.id === caller.participantId)).toMatchObject({
+      joinedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+      leftAt: null,
+    });
+    expect(finalized.manifest.events.filter(
+      (event) => event.type === "participant_left" && event.participantId === caller.participantId,
+    )).toHaveLength(0);
+
+    await Promise.all([replacementCallerSocket.close(), calleeSocket.close()]);
+    await room.getStatus();
+    const persistedEventCount = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM call_events WHERE call_id = ?",
+    ).bind(callId).first<{ count: number }>();
+    expect(persistedEventCount?.count).toBe(finalized.manifest.events.length);
+  });
+
+  it("records one presence departure for a genuine disconnect", async () => {
+    const session = await login();
+    const experimentId = await createExperiment(session, noArtifactConfig);
+    const callId = await createCall(session, experimentId);
+    const participants = await redeemCall(session, callId);
+    const caller = participants.find((participant) => participant.role === "caller")!;
+    const callee = participants.find((participant) => participant.role === "callee")!;
+    const callerSocket = await connect(callId, caller);
+    await callerSocket.next("welcome");
+    const calleeSocket = await connect(callId, callee);
+    await calleeSocket.next("welcome");
+    await callerSocket.next("schedule_issued");
+
+    const room = env.CALL_ROOM.getByName(callId);
+    await callerSocket.close();
     await room.getStatus();
     const presenceAfterDisconnect = await env.DB.prepare(
       "SELECT left_at FROM call_participants WHERE call_id = ? AND id = ?",
@@ -375,6 +421,8 @@ describe("authoritative call Durable Object", () => {
 
     expect(presenceAfterDisconnect?.left_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(genuineDepartureCount?.count).toBe(1);
+    calleeSocket.socket.send(JSON.stringify({ type: "end_call", clientClockMs: Date.now() }));
+    await calleeSocket.next("call_ended");
     await calleeSocket.close();
   });
 
