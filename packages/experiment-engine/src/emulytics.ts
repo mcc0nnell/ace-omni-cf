@@ -1,5 +1,3 @@
-/// <reference lib="dom" />
-
 export type AdapterCapability =
   | "communications"
   | "network"
@@ -166,9 +164,16 @@ function cloneJson<T extends JsonValue>(value: T): T {
   return JSON.parse(canonicalJson(value)) as T;
 }
 
+interface CryptoDigestLike {
+  subtle: {
+    digest(algorithm: string, data: Uint8Array): Promise<ArrayBuffer>;
+  };
+}
+
 export async function sha256Canonical(value: JsonValue): Promise<string> {
   const bytes = new TextEncoder().encode(canonicalJson(value));
-  const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+  const cryptoLike = (globalThis as unknown as { crypto: CryptoDigestLike }).crypto;
+  const digest = await cryptoLike.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
