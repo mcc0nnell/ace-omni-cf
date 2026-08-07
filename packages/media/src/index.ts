@@ -7,6 +7,8 @@ import type {
   ScheduledManipulation,
 } from "@ace-omni/domain";
 
+export * from "./webrtc-telemetry";
+
 export interface AudioClockObservation {
   callClockStartMs: number;
   observedAtMs: number;
