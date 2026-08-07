@@ -27,7 +27,10 @@ describe("security boundaries", () => {
       subject: "participant-1",
     });
 
-    const tampered = `${token.slice(0, -1)}${token.endsWith("a") ? "b" : "a"}`;
+    const [version, body, signature] = token.split(".");
+    if (!version || !body || !signature) throw new Error("test credential is malformed");
+    const tamperedBody = `${body[0] === "A" ? "B" : "A"}${body.slice(1)}`;
+    const tampered = `${version}.${tamperedBody}.${signature}`;
     await expect(verifyClaims(secret, tampered, ClaimsSchema)).resolves.toBeNull();
   });
 
