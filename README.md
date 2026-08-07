@@ -1,8 +1,8 @@
 # ACE Omni (Cloudflare-native)
 
-ACE Omni is a controlled Telecommunications Relay Services research laboratory. It is not a generic video-chat application. Researchers save immutable communications conditions, issue call-bound participant invitations, run synchronized calls, apply deterministic caption and audio conditions, and collect checksum-linked evidence.
+ACE Omni is a controlled Telecommunications Relay Services research laboratory and an emerging experiment-control and evidence plane for human-in-the-loop communications research. It is not a generic video-chat application and it is not a simulator. Researchers save immutable communications conditions, issue call-bound participant invitations, run synchronized calls, apply deterministic conditions, collect checksum-linked evidence, and can now compile generic experiment runs for attached systems under test.
 
-This repository resurrects the original [ACE Omni](https://github.com/mitrefccace/ace-omni) architecture on React, Vite, Hono, Cloudflare Workers, D1, Durable Objects, R2, WebRTC, and AudioWorklets.
+This repository resurrects the original [ACE Omni](https://github.com/mitrefccace/ace-omni) architecture on React, Vite, Hono, Cloudflare Workers, D1, Durable Objects, R2, WebRTC, and AudioWorklets while preserving the existing TRS call path.
 
 ## What executes today
 
@@ -22,6 +22,12 @@ The implemented vertical slice covers:
 12. A versioned immutable evidence manifest, authorized downloads, research export, and pinned replay.
 13. Fresh-credential reconnect, authoritative resynchronization, and a persistent client outbox for idempotent research observations.
 14. An unbranded semantic-token system that enforces contrast and renders the pinned caption size, high-contrast, and attribution settings.
+
+Alongside that live call path, the repository now includes three additional research primitives:
+
+- **Generic Emulytics protocol:** first-class `ExperimentRun`, deterministic execution plans, capability-scoped system-under-test adapters, canonical plan digests, versioned observation envelopes, replay identity, and a synthetic loopback adapter.
+- **Deterministic VRS video timing primitives:** application-layer `video_lag`, `video_jitter`, and `video_freeze` conditions with seeded frame decisions. These primitives are implemented and tested but are not yet wired into the current `CallPage` rendering path.
+- **WebRTC telemetry observer:** real `RTCPeerConnection.getStats()` measurement for RTP jitter, jitter-buffer delay, packet loss, RTT, frame drops, freezes, audio concealment, and selected ICE candidate-pair metrics. The observer is implemented and tested; generic observation-to-ledger runtime wiring is the next integration step.
 
 ## How Omni works
 
@@ -70,19 +76,95 @@ flowchart TB
 7. MediaRecorder captures only policy-authorized streams. The Worker binds each one-use upload to its call, participant, artifact type, size, and SHA-256 digest before storing bytes in R2 and metadata in D1.
 8. Finalization produces an immutable manifest connecting the pinned configuration, participants, schedule, events, captions, recordings, checksums, and timestamps. The researcher can inspect, download, export, or replay that exact version.
 
+## Emulytics control and evidence plane
+
+Omni now raises the experiment-engine abstraction above a single telecommunications call without replacing the working call model.
+
+```mermaid
+flowchart LR
+    experiment["Pinned experiment version"]
+    run["ExperimentRun"]
+    plan["Deterministic execution plan"]
+    comms["Communications adapter"]
+    network["Network / cyber adapter"]
+    simulator["Simulation / sensor adapter"]
+    world["World / system under test"]
+    observations["Versioned observations"]
+    ledger["Omni authoritative evidence ledger"]
+    analysis["Replay / comparison / analysis"]
+
+    experiment --> run --> plan
+    plan --> comms
+    plan --> network
+    plan --> simulator
+    comms --> world
+    network --> world
+    simulator --> world
+    world --> observations --> ledger --> analysis
+```
+
+**World creation belongs to attached systems. Experiment authority belongs to Omni.**
+
+The generic engine provides:
+
+- immutable run identity tied to a pinned experiment version;
+- capability-scoped `SystemUnderTestAdapter` contracts;
+- deterministic, seedable command plans with canonical SHA-256 digests;
+- stable command sequencing independent of input ordering;
+- versioned observation envelopes with source identity and payload digests;
+- idempotent replay identity and conflict detection; and
+- a synthetic loopback adapter for validating the protocol without coupling Omni to a simulator.
+
+The intended layering is:
+
+`pinned experiment → experiment run → deterministic execution plan → adapters → world/system under test → observations → Omni evidence ledger`
+
+A future minimega, SCEPTRE, Firewheel, Unreal, hardware-in-the-loop, network-emulation, sensor, or other integration should implement this adapter boundary rather than introduce a parallel experiment model.
+
+See [Emulytics control plane](docs/EMULYTICS.md).
+
+## Jitter: commanded conditions versus measured behavior
+
+Omni deliberately distinguishes two different signals that are often both called “jitter.”
+
+**Commanded application-layer timing jitter** is an experiment condition. The VRS timing primitives can deterministically vary presentation timing with seeded `video_lag`, `video_jitter`, and `video_freeze` behavior.
+
+**Observed WebRTC jitter** is a measurement from the actual RTP/ICE/media path. The WebRTC telemetry observer samples `RTCPeerConnection.getStats()` and normalizes browser metrics including:
+
+- RTP inter-arrival jitter;
+- cumulative and interval packet loss;
+- jitter-buffer cumulative, average, target, and minimum delay;
+- remote-reported jitter and RTT;
+- selected ICE candidate-pair RTT and available bitrate;
+- decoded/dropped frames and freeze counts/duration; and
+- concealed audio samples and concealment events.
+
+This separation enables a real experimental chain without assuming equivalence:
+
+`commanded timing condition → observed RTP/media behavior → presentation degradation → participant effect`
+
+The observer preserves both local observation time and source `RTCStats.timestamp`, stable peer-connection source identity, and monotonically increasing sample sequence. It intentionally does not impose a universal jitter pass/fail threshold.
+
+See [VRS video timing](docs/VRS_VIDEO_TIMING.md) and [WebRTC telemetry and jitter detection](docs/WEBRTC_TELEMETRY.md).
+
 ## Why this is a research instrument
 
 A recording by itself is only media. Omni produces a defensible research record by preserving the complete chain from intended conditions to observed execution:
 
 `immutable experiment digest → pinned call → HMAC-authenticated schedule → ordered acknowledgements and execution times → checksum-verified evidence → immutable manifest → pinned replay`
 
-That chain lets a researcher establish which configuration governed the call, who occupied each role, what each client was instructed to execute, what it reported actually executing, which artifacts were collected, whether their bytes still match, and which exact configuration a replay uses. A later experiment version cannot silently rewrite an earlier call.
+The generic Emulytics path extends the same principle:
 
-Omni also treats every browser as an untrusted execution endpoint. A browser may capture media, apply assigned conditions, and report observations, but it cannot choose its authoritative identity, role, room, experiment version, schedule, event sequence, R2 key, or evidence metadata.
+`pinned experiment → deterministic run plan → capability-bound commands → versioned observations → replay-safe evidence identity → comparison and analysis`
+
+That chain lets a researcher establish which configuration governed the call or run, who or what occupied each role, what each execution endpoint was instructed to do, what it reported or measured, which artifacts were collected, whether their bytes still match, and which exact configuration a replay uses. A later experiment version cannot silently rewrite an earlier result.
+
+Omni also treats every browser or attached runtime as an untrusted execution endpoint. An endpoint may capture media, apply assigned conditions, execute adapter commands, and report observations, but it cannot choose its authoritative identity, role, room, experiment version, schedule or plan sequence, evidence object key, or evidence metadata.
 
 - **Researcher boundary:** opaque server-managed sessions, HttpOnly cookies, SameSite enforcement, exact credentialed origins, Fetch Metadata checks, double-submit CSRF, and ownership checks.
 - **Participant boundary:** call-, version-, role-, and expiration-bound invitations; atomic single redemption; server-assigned identity; and short-lived, one-use room credentials revalidated by the Durable Object.
 - **Room boundary:** same-call signaling targets, authoritative timing, authenticated schedules, assigned-manipulation acknowledgements, ordered events, and persisted hibernation recovery.
+- **Experiment boundary:** pinned run identity, capability-declared adapters, deterministic command sequencing, canonical plan digests, and replay-safe observation identity.
 - **Evidence boundary:** owned downloads plus one-use uploads bound to call, participant, artifact type, content type, size, checksum, and a server-selected R2 key.
 
 ## Validated browser views
@@ -97,15 +179,15 @@ The researcher view connects the pinned experiment version to participants, auth
 
 ![Researcher call inspection showing the pinned configuration digest, participants, authorized evidence, immutable event sequence, and evidence manifest](docs/images/research-manifest.png)
 
-See [architecture audit](docs/ARCHITECTURE_AUDIT.md), [implementation status](docs/IMPLEMENTATION_STATUS.md), [security boundaries](docs/SECURITY.md), and the [executed validation record](docs/VALIDATION.md).
+See [architecture audit](docs/ARCHITECTURE_AUDIT.md), [implementation status](docs/IMPLEMENTATION_STATUS.md), [security boundaries](docs/SECURITY.md), [Emulytics control plane](docs/EMULYTICS.md), [VRS video timing](docs/VRS_VIDEO_TIMING.md), [WebRTC telemetry](docs/WEBRTC_TELEMETRY.md), and the [executed validation record](docs/VALIDATION.md).
 
 ## Repository map
 
 - `apps/web` — React/Vite researcher and participant application.
 - `apps/worker` — Hono API and the `CallRoom` Durable Object.
 - `packages/domain` — shared versioned Zod contracts.
-- `packages/experiment-engine` — deterministic schedule expansion.
-- `packages/media` — frame mapping, AudioWorklet graph, seeded randomness, and MediaRecorder helpers.
+- `packages/experiment-engine` — deterministic TRS schedule expansion plus generic experiment-run, execution-plan, adapter, and observation protocols.
+- `packages/media` — AudioWorklet graph and frame mapping, deterministic video timing primitives, seeded randomness, WebRTC telemetry normalization/observation, and MediaRecorder helpers.
 - `packages/test-support` — two-independent-context Playwright test with fake media.
 - `migrations` — ordered D1 migrations.
 
