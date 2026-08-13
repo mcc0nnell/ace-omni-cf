@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "name": "transport-timeout-failure",
+  "runId": "run-1",
+  "activityId": "call-1",
+  "observedAt": "2026-08-13T10:00:00Z",
+  "events": [
+    {"eventId":"join-a","type":"participant_joined","participantId":"caller"},
+    {"eventId":"join-b","type":"participant_joined","participantId":"callee"},
+    {"eventId":"timeout","type":"transport_failure","sourceId":"timer","reason":"call_timeout"},
+    {"eventId":"late-start","type":"activity_started"}
+  ],
+  "expected": {"terminalState":"FAILED","trace":[
+    {"eventId":"join-a","accepted":true,"state":"WAITING","commands":[],"observationDelta":0},
+    {"eventId":"join-b","accepted":true,"state":"READY","commands":["START_ACTIVITY"],"observationDelta":0},
+    {"eventId":"timeout","accepted":true,"state":"FAILED","commands":[],"observationDelta":0},
+    {"eventId":"late-start","accepted":false,"state":"FAILED","commands":[],"observationDelta":0}
+  ]}
+}

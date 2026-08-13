@@ -73,6 +73,9 @@ jobs:
       - name: Run unit tests
         run: npm test
 
+      - name: Compare Cloudflare and SLEE Omni Core semantic traces
+        run: npm run test:conformance
+
       - name: Run Worker, D1, R2, and Durable Object integration tests
         run: npm run test:integration
 
@@ -89,3 +92,4 @@ jobs:
           path: |
             test-results/playwright
             packages/test-support/playwright-report
+            conformance/generated

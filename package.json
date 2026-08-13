@@ -19,6 +19,7 @@
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:conformance": "node scripts/run-omni-conformance.mjs",
     "test:integration": "npm run test:integration --workspace=apps/worker",
     "test:e2e:prepare": "node scripts/prepare-e2e.mjs",
     "test:e2e": "npm run test:e2e:prepare && npm run test:e2e --workspace=packages/test-support",
