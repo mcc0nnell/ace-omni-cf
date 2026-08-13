@@ -16,7 +16,11 @@ import {
   type NormalizedExperimentConfig,
   type RoomCredentialClaims,
 } from "@ace-omni/domain";
-import { expandExperimentSchedule } from "@ace-omni/experiment-engine";
+import {
+  createObservationEnvelope,
+  expandExperimentSchedule,
+  type JsonValue,
+} from "@ace-omni/experiment-engine";
 import type { WorkerEnv } from "./env";
 import { canonicalJson, hmacSign, verifyClaims } from "./security";
 
@@ -39,6 +43,20 @@ const ClientEventIdSchema = z
   .min(1)
   .max(160)
   .regex(/^[A-Za-z0-9._:-]+$/);
+
+const ObservationStableIdSchema = z
+  .string()
+  .min(1)
+  .max(120)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/);
+
+// The room namespaces a reported source with the authenticated participant UUID.
+// Keep the client portion bounded so the resulting Emulytics source id stays <= 120 chars.
+const ObservationSourceIdSchema = z
+  .string()
+  .min(1)
+  .max(80)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/);
 
 const SignalMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("offer"), targetId: z.string().uuid(), sdp: SessionDescriptionSchema }),
@@ -68,6 +86,16 @@ const SignalMessageSchema = z.discriminatedUnion("type", [
     isFinal: z.boolean(),
     clientClockMs: z.number().int().nonnegative(),
     utteranceId: z.string().min(1).max(120),
+  }),
+  z.object({
+    type: z.literal("observation"),
+    clientEventId: ClientEventIdSchema,
+    observationId: ObservationStableIdSchema,
+    adapterId: ObservationStableIdSchema,
+    sourceId: ObservationSourceIdSchema,
+    observedAt: z.string().datetime({ offset: true }),
+    payload: z.unknown(),
+    clientClockMs: z.number().int().nonnegative(),
   }),
   z.object({
     type: z.enum(["recording_started", "recording_stopped"]),
@@ -562,6 +590,77 @@ export class CallRoom extends DurableObject<WorkerEnv> {
           attachment.participantId,
         );
       }
+      return;
+    }
+
+    if (data.type === "observation") {
+      let envelope: Awaited<ReturnType<typeof createObservationEnvelope>>;
+      try {
+        envelope = await createObservationEnvelope({
+          observationId: data.observationId,
+          runId: meta.call_id,
+          adapterId: data.adapterId,
+          sourceId: `${attachment.participantId}:${data.sourceId}`,
+          observedAt: data.observedAt,
+          payload: data.payload as JsonValue,
+        });
+      } catch {
+        this.sendError(socket, "invalid_observation", "Observation payload or identity is invalid");
+        return;
+      }
+      const observationPayload = { envelope };
+      const observationPayloadJson = canonicalJson(observationPayload);
+      const existing = this.ctx.storage.sql.exec<{
+        sequence: number;
+        type: string;
+        payload_json: string;
+        client_clock_ms: number | null;
+      }>(
+        `SELECT sequence, type, payload_json, client_clock_ms FROM room_events
+         WHERE participant_id = ? AND client_event_id = ?`,
+        attachment.participantId,
+        data.clientEventId,
+      ).toArray()[0];
+      if (
+        existing &&
+        (
+          existing.type !== "observation" ||
+          existing.payload_json !== observationPayloadJson ||
+          existing.client_clock_ms !== data.clientClockMs
+        )
+      ) {
+        await this.recordEvent(
+          "error",
+          attachment.participantId,
+          {
+            code: "observation_replay_conflict",
+            clientEventId: data.clientEventId,
+            existingSequence: existing.sequence,
+            attemptedPayloadSha256: envelope.payloadSha256,
+            attemptedObservedAt: envelope.observedAt,
+          },
+          data.clientClockMs,
+        );
+        this.sendError(
+          socket,
+          "observation_replay_conflict",
+          "Observation replay changed after its client event id was committed",
+        );
+        // Drain the conflicting local outbox entry while preserving the original immutable event.
+        this.sendEventAck(socket, data.clientEventId, {
+          applied: false,
+          sequence: existing.sequence,
+        });
+        return;
+      }
+      const result = await this.recordClientEvent(
+        "observation",
+        attachment.participantId,
+        observationPayload,
+        data.clientClockMs,
+        data.clientEventId,
+      );
+      this.sendEventAck(socket, data.clientEventId, result);
       return;
     }
 

@@ -27,7 +27,7 @@ Alongside that live call path, the repository now includes three additional rese
 
 - **Generic Emulytics protocol:** first-class `ExperimentRun`, deterministic execution plans, capability-scoped system-under-test adapters, canonical plan digests, versioned observation envelopes, replay identity, and a synthetic loopback adapter.
 - **Deterministic VRS video timing primitives:** application-layer `video_lag`, `video_jitter`, and `video_freeze` conditions with seeded frame decisions. These primitives are implemented and tested but are not yet wired into the current `CallPage` rendering path.
-- **WebRTC telemetry observer:** real `RTCPeerConnection.getStats()` measurement for RTP jitter, jitter-buffer delay, packet loss, RTT, frame drops, freezes, audio concealment, and selected ICE candidate-pair metrics. The observer is implemented and tested; generic observation-to-ledger runtime wiring is the next integration step.
+- **WebRTC telemetry evidence path:** real `RTCPeerConnection.getStats()` measurement for RTP jitter, jitter-buffer delay, packet loss, RTT, frame drops, freezes, audio concealment, and selected ICE candidate-pair metrics now flows through the reliable room outbox into server-created generic observation envelopes, authoritative Durable Object sequencing, D1, manifests, exports, and replay.
 
 ## How Omni works
 

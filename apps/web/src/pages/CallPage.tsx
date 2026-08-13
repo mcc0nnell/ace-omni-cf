@@ -8,10 +8,12 @@ import {
 import {
   createAudioManipulationGraph,
   createSeededRandom,
+  createWebRtcTelemetryObserver,
   sha256Blob,
   startRecording,
   type ActiveRecording,
   type AudioManipulationGraph,
+  type WebRtcTelemetryObserver,
 } from "@ace-omni/media";
 import { api, type ParticipantSession } from "../lib/api";
 import {
@@ -83,6 +85,7 @@ export default function CallPage({ callId }: { callId: string }) {
 
   const roomClientRef = useRef<ReliableRoomClient | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  const telemetryObserverRef = useRef<WebRtcTelemetryObserver | null>(null);
   const peerIdRef = useRef<string | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
@@ -349,6 +352,7 @@ export default function CallPage({ callId }: { callId: string }) {
     const finishEvidence = async () => {
       if (evidenceFinishingRef.current) return;
       evidenceFinishingRef.current = true;
+      telemetryObserverRef.current?.stop();
       setEvidenceProgress("Stopping recorders…");
       const entries = [...recordingsRef.current.values()];
       for (const entry of entries) {
@@ -431,6 +435,29 @@ export default function CallPage({ callId }: { callId: string }) {
         ]);
         const peer = new RTCPeerConnection({ iceServers: [] });
         pcRef.current = peer;
+        const telemetrySourceId = crypto.randomUUID();
+        const telemetryObserver = createWebRtcTelemetryObserver(peer, {
+          sourceId: telemetrySourceId,
+          intervalMs: 1_000,
+          onSample: (sample) => {
+            if (!activeRef.current || !participantSession.config.evidencePolicy.experimentEvents) return;
+            sendDurable({
+              type: "observation",
+              observationId: `sample:${sample.sequence}`,
+              adapterId: "browser-webrtc",
+              sourceId: telemetrySourceId,
+              observedAt: new Date(sample.observedAtMs).toISOString(),
+              payload: sample,
+              clientClockMs: sample.observedAtMs,
+            }, `observation:${telemetrySourceId}:${sample.sequence}`);
+          },
+          onError: (reason) => {
+            if (!cancelled && activeRef.current) {
+              setStatus(`WebRTC telemetry failed: ${reason.message}`);
+            }
+          },
+        });
+        telemetryObserverRef.current = telemetryObserver;
         outgoingStream.getTracks().forEach((track) => peer.addTrack(track, outgoingStream));
         peer.onconnectionstatechange = () => {
           const connected = peer.connectionState === "connected";
@@ -507,6 +534,7 @@ export default function CallPage({ callId }: { callId: string }) {
         const activateCall = (startAt: number) => {
           callClockStartRef.current = startAt;
           activeRef.current = true;
+          telemetryObserver.start();
           startLocalEvidence();
           startRemoteEvidence();
           startMockCaptions(startAt);
@@ -661,6 +689,8 @@ export default function CallPage({ callId }: { callId: string }) {
     return () => {
       cancelled = true;
       activeRef.current = false;
+      telemetryObserverRef.current?.stop();
+      telemetryObserverRef.current = null;
       timersRef.current.forEach((timer) => clearTimeout(timer));
       roomClientRef.current?.stop();
       roomClientRef.current = null;

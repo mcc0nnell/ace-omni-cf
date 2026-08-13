@@ -329,6 +329,134 @@ async function expectTerminalStateAccountedFor(
 }
 
 describe("authoritative call Durable Object", () => {
+  it("records generic WebRTC observations exactly once and carries them into the manifest", async () => {
+    const session = await login();
+    const experimentId = await createExperiment(session, noArtifactConfig);
+    const callId = await createCall(session, experimentId);
+    const participants = await redeemCall(session, callId);
+    const caller = participants.find((participant) => participant.role === "caller")!;
+    const callee = participants.find((participant) => participant.role === "callee")!;
+
+    const callerSocket = await connect(callId, caller);
+    await callerSocket.next("welcome");
+    const calleeSocket = await connect(callId, callee);
+    await calleeSocket.next("welcome");
+    await callerSocket.next("schedule_issued");
+
+    const observedAt = new Date().toISOString();
+    const observation = {
+      type: "observation",
+      clientEventId: "observation:pc-a:1",
+      observationId: "sample:1",
+      adapterId: "browser-webrtc",
+      sourceId: "pc-a",
+      observedAt,
+      payload: {
+        version: 1,
+        sourceId: "pc-a",
+        sequence: 1,
+        observedAtMs: Date.parse(observedAt),
+        statsTimestampMs: 1234,
+        connectionState: "connected",
+        iceConnectionState: "connected",
+        signalingState: "stable",
+        inbound: [],
+        remoteInbound: [],
+        candidatePair: null,
+        maxInboundJitterMs: null,
+        maxJitterBufferAverageDelayMs: null,
+      },
+      clientClockMs: Date.parse(observedAt),
+    };
+
+    callerSocket.socket.send(JSON.stringify(observation));
+    const firstAck = await callerSocket.next("event_ack");
+    expect(firstAck).toMatchObject({
+      clientEventId: observation.clientEventId,
+      applied: true,
+    });
+
+    callerSocket.socket.send(JSON.stringify(observation));
+    const replayAck = await callerSocket.next("event_ack");
+    expect(replayAck).toMatchObject({
+      clientEventId: observation.clientEventId,
+      applied: false,
+      sequence: firstAck.sequence,
+    });
+
+    callerSocket.socket.send(JSON.stringify({
+      ...observation,
+      payload: { ...observation.payload, connectionState: "failed" },
+    }));
+    await expect(callerSocket.next("error")).resolves.toMatchObject({
+      code: "observation_replay_conflict",
+    });
+    await expect(callerSocket.next("event_ack")).resolves.toMatchObject({
+      clientEventId: observation.clientEventId,
+      applied: false,
+      sequence: firstAck.sequence,
+    });
+
+    const conflictRows = await env.DB.prepare(
+      `SELECT payload_json FROM call_events
+       WHERE call_id = ? AND participant_id = ? AND type = 'error'`,
+    ).bind(callId, caller.participantId).all<{ payload_json: string }>();
+    expect(conflictRows.results.map((row) => JSON.parse(row.payload_json))).toContainEqual(
+      expect.objectContaining({
+        code: "observation_replay_conflict",
+        clientEventId: observation.clientEventId,
+        existingSequence: firstAck.sequence,
+      }),
+    );
+
+    const rows = await env.DB.prepare(
+      `SELECT sequence, payload_json FROM call_events
+       WHERE call_id = ? AND participant_id = ? AND type = 'observation'
+       ORDER BY sequence`,
+    ).bind(callId, caller.participantId).all<{ sequence: number; payload_json: string }>();
+    expect(rows.results).toHaveLength(1);
+    const storedPayload = JSON.parse(rows.results[0]!.payload_json) as {
+      envelope: {
+        version: number;
+        observationId: string;
+        runId: string;
+        adapterId: string;
+        sourceId: string;
+        observedAt: string;
+        payload: Record<string, unknown>;
+        payloadSha256: string;
+      };
+    };
+    expect(storedPayload.envelope).toMatchObject({
+      version: 1,
+      observationId: "sample:1",
+      runId: callId,
+      adapterId: "browser-webrtc",
+      sourceId: `${caller.participantId}:pc-a`,
+      observedAt,
+      payload: observation.payload,
+    });
+    expect(storedPayload.envelope.payloadSha256).toMatch(/^[a-f0-9]{64}$/);
+
+    callerSocket.socket.send(JSON.stringify({
+      type: "end_call",
+      clientClockMs: Date.now(),
+    }));
+    await calleeSocket.next("call_ended");
+    const terminal = await expectTerminalStateAccountedFor(session, callId);
+    expect(terminal.state).toBe("ended");
+    const manifest = terminal.manifest as {
+      events: Array<{ type: string; participantId: string | null; payload: Record<string, unknown> }>;
+    };
+    const manifestObservations = manifest.events.filter(
+      (event) => event.type === "observation" && event.participantId === caller.participantId,
+    );
+    expect(manifestObservations).toHaveLength(1);
+    expect(manifestObservations[0]!.payload).toEqual(storedPayload);
+
+    await Promise.all([callerSocket.close(), calleeSocket.close()]);
+  });
+
   it("keeps a replacement reconnect contiguous in D1 and the finalized manifest", async () => {
     const session = await login();
     const experimentId = await createExperiment(session, noArtifactConfig);
