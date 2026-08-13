@@ -50,17 +50,41 @@ A trial is never `proven` merely because a document says so. `npm run test:elixi
 
 ## Initial trials
 
-### PG-001 — Runtime Independence
+### PG-001 — Runtime Independence — PROVEN
 
 Demonstrate that the same Omni Core behavior produces equivalent semantic traces across Cloudflare Omni, JAIN SLEE Omni, and Elixip Omni.
 
-This is the first proven ElixiPG trial. It uses the five canonical conformance fixtures and the generated traces under `conformance/generated/`.
+PG-001 uses the five canonical conformance fixtures and generated traces under `conformance/generated/` to require:
 
-### PG-002 — SIP Establishment
+```text
+Cloudflare Omni ≡ JAIN SLEE Omni ≡ Elixip Omni
+```
 
-Replace abstract `START_ACTIVITY` in the Elixip conformance scenario with a real SIP INVITE/dialog lifecycle. Normalize dialog establishment, failure, teardown, and relevant media observations back into Omni Core events and evidence.
+### PG-002 — SIP Establishment — PROVEN
 
-PG-002 is intentionally `planned` until that real SIP path exists.
+Bind the abstract Omni `START_ACTIVITY` intent to actual Elixip SIP transaction and dialog behavior.
+
+The canonical successful Omni fixture launches `ports/elixip/elixipg_pg002_sip_establishment.exs` inside the pinned Elixip runtime. The trial uses Elixip's own `SIP.Test.Transport.UDPMockup` and `MediaServer.Mockup`, then emits a dedicated artifact under `conformance/generated/elixipg/`.
+
+The validated causal chain includes:
+
+```text
+START_ACTIVITY
+  → INVITE sent and serialized
+  → 180 provisional response
+  → 200 final response
+  → ACK
+  → dialog established
+  → media connectivity observed
+  → BYE sent and serialized
+  → 200 teardown response
+  → dialog terminated
+  → COMPLETED / pass
+```
+
+Every observation carries one trial correlation identity and a contiguous sequence. CI validates the required milestones in order before accepting the trial evidence.
+
+**Claim boundary:** PG-002 proves deterministic execution of Elixip's SIP serialization/parsing, transaction handling, dialog establishment/teardown, SDP processing, and media-connectivity semantics through Elixip's own test adapters. It does not claim external-network SIP interoperability or RTP interoperability. Those belong in later proving-ground trials.
 
 ## Architectural rule
 
