@@ -16,6 +16,7 @@ Status is evidence-based: “tested” means the path has executed in automation
 | Terminal call-state invariant | Tested | every exercised terminal state either finalizes a manifest or carries an explicit `failed_reason` |
 | Experiment-derived signed schedule | Tested | deterministic engine, runtime identity mapping, HMAC verification |
 | WebRTC audio/video | Tested | two independent Chromium contexts with fake devices |
+| WebRTC telemetry → observation ledger | Implemented and integration-tested | `getStats()` observer emits durable generic observations; the room creates the envelope, deduplicates lost-ACK replay, sequences to D1, and finalized manifests retain the observation |
 | Mock captions | Tested | both contexts exchange and render synthetic captions |
 | Caption appearance and semantic tokens | Tested at unit/build level | pinned size/contrast/attribution are rendered; token export drift, critical contrast pairs, forced colors, reduced motion, and touch target are asserted |
 | Caption and audio schedule execution | Tested | exact schedule offsets persisted; AudioWorklet frame mapping unit tests |

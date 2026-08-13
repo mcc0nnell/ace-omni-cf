@@ -363,6 +363,7 @@ export const CallEventTypeSchema = z.enum([
   "ice_candidate",
   "call_started",
   "schedule_issued",
+  "observation",
   "manipulation_ack",
   "manipulation_executed",
   "caption_raw",

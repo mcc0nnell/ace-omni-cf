@@ -74,10 +74,10 @@ Periodic sampling is serialized so a slow `getStats()` call cannot create overla
 
 ## Evidence boundary
 
-This PR establishes the measurement primitive and its deterministic normalization/tests. It deliberately does not make jitter a special case in the Emulytics core protocol.
+WebRTC telemetry now uses the same generic observation path as other future systems under test. The browser never authors the authoritative `ObservationEnvelope`: it reports an observation input through the persistent room outbox, and the authenticated Durable Object binds that report to the current call/run, namespaces the source to the authenticated participant, computes the canonical payload SHA-256, assigns the room sequence, synchronizes it to D1, and only then acknowledges the client event.
 
-The next runtime wiring should carry `WebRtcTelemetrySample` through a generic evidence-bearing observation event, where the existing reliable room outbox and Durable Object sequencer can provide retry safety, authoritative sequence assignment, D1 synchronization, manifest inclusion, and replay.
+An exact lost-ACK replay is therefore idempotent and does not create a second evidence event. A replay that reuses the same client event id with changed observation content is rejected as a conflict, preserved as an `error` event in the evidence record, and cannot overwrite the original observation. The resulting observation event is included in the immutable manifest, research export, and pinned replay without making WebRTC jitter a special case in the Emulytics protocol.
 
-That keeps the architecture clean:
+The runtime chain is:
 
-`RTCPeerConnection.getStats() → WebRTC telemetry observer → generic Omni observation → authoritative evidence ledger`
+`RTCPeerConnection.getStats() → WebRTC telemetry observer → persistent room outbox → server-created generic ObservationEnvelope → Durable Object sequence → D1 → manifest/export/replay`

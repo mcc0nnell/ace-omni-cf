@@ -2,6 +2,7 @@ export const DURABLE_ROOM_EVENT_TYPES = [
   "manipulation_ack",
   "manipulation_executed",
   "caption_displayed",
+  "observation",
   "recording_started",
   "recording_stopped",
 ] as const;
@@ -114,8 +115,8 @@ export class ReliableRoomClient {
     this.idFactory = options.idFactory ?? (() => crypto.randomUUID());
     this.now = options.now ?? Date.now;
     this.random = options.random ?? Math.random;
-    this.setTimer = options.setTimer ?? setTimeout;
-    this.clearTimer = options.clearTimer ?? clearTimeout;
+    this.setTimer = options.setTimer ?? ((callback, delayMs) => globalThis.setTimeout(callback, delayMs));
+    this.clearTimer = options.clearTimer ?? ((timer) => globalThis.clearTimeout(timer));
     this.retryBaseMs = options.retryBaseMs ?? 500;
     this.retryMaxMs = options.retryMaxMs ?? 15_000;
     this.maxOutboxEntries = options.maxOutboxEntries ?? 5_000;

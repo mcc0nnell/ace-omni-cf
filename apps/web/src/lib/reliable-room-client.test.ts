@@ -167,6 +167,41 @@ describe("ReliableRoomClient", () => {
     });
   });
 
+  it("persists generic observation events until an authoritative ACK", async () => {
+    const client = createClient();
+    client.start();
+    await settle();
+    sockets[0]!.open();
+    sockets[0]!.receive({ type: "welcome", lastSequence: 4, state: "active" });
+    client.sendDurable({
+      type: "observation",
+      observationId: "sample:1",
+      adapterId: "browser-webrtc",
+      sourceId: "pc-a",
+      observedAt: "2026-08-12T23:25:00.000Z",
+      payload: { version: 1, sequence: 1 },
+      clientClockMs: 1_786_579_500_000,
+    }, "observation:pc-a:1");
+
+    expect(client.pendingEventCount()).toBe(1);
+    expect(JSON.parse(sockets[0]!.sent[0]!)).toMatchObject({
+      type: "observation",
+      clientEventId: "observation:pc-a:1",
+      observationId: "sample:1",
+      adapterId: "browser-webrtc",
+      sourceId: "pc-a",
+    });
+
+    sockets[0]!.receive({
+      type: "event_ack",
+      clientEventId: "observation:pc-a:1",
+      sequence: 5,
+      applied: true,
+    });
+    expect(client.pendingEventCount()).toBe(0);
+    expect(client.authoritativeSequence()).toBe(5);
+  });
+
   it("uses one reconnect timer when error and close both fire", async () => {
     const client = createClient();
     client.start();
