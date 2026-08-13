@@ -32,6 +32,17 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Use Java for JAIN SLEE conformance port
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: ports/jain-slee/pom.xml
+
+      - name: Compile and test JAIN SLEE conformance port
+        run: mvn -B -f ports/jain-slee/pom.xml test
+
       - name: Reject NUL-corrupted tracked source
         run: npm run check:integrity
 
