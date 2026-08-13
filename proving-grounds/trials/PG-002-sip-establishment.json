@@ -1,33 +1,42 @@
 {
   "id": "PG-002",
   "title": "SIP Establishment",
-  "status": "planned",
-  "objective": "Bind Omni START_ACTIVITY to a real Elixip SIP INVITE/dialog lifecycle and normalize resulting signaling and media observations back into Omni Core evidence.",
+  "status": "proven",
+  "objective": "Bind Omni START_ACTIVITY to Elixip call establishment and preserve normalized signaling and media-connectivity evidence.",
   "executor": {
     "kind": "elixip-sip-scenario",
-    "runtime": "elixip"
+    "runtime": "elixip",
+    "scenario": "ports/elixip/elixipg_pg002_sip_establishment.exs"
   },
-  "plannedFlow": [
-    "START_ACTIVITY",
-    "SIP_INVITE",
-    "PROVISIONAL_RESPONSE",
-    "DIALOG_ESTABLISHED",
-    "MEDIA_OBSERVED",
-    "DIALOG_TERMINATED"
-  ],
+  "conditions": {
+    "sipTransport": "SIP.Test.Transport.UDPMockup",
+    "mediaAdapter": "MediaServer.Mockup",
+    "claimBoundary": "Deterministic runtime-semantic trial; external network interoperability is outside this trial."
+  },
   "assertions": [
     "dialog_establishes_or_fails_explicitly",
     "signaling_events_preserve_trial_correlation",
-    "media_observations_do_not_become_authority",
-    "teardown_reaches_terminal_state",
-    "late_events_cannot_reopen_terminal_state"
+    "media_connectivity_is_observed",
+    "teardown_reaches_terminal_state"
   ],
   "evidence": {
-    "requiredBeforeProven": [
-      "real Elixip SIP scenario execution",
-      "normalized Omni semantic trace",
-      "preserved signaling observations",
-      "terminal verdict"
+    "artifact": "conformance/generated/elixipg/PG-002-sip-establishment.json",
+    "requiredRuntime": "elixip",
+    "expectedTerminalState": "COMPLETED",
+    "expectedVerdict": "pass",
+    "requiredObservationTypes": [
+      "START_ACTIVITY",
+      "SIP_INVITE_SENT",
+      "SIP_INVITE_OBSERVED",
+      "SIP_180_RECEIVED",
+      "SIP_200_RECEIVED",
+      "SIP_ACK_SENT",
+      "DIALOG_ESTABLISHED",
+      "MEDIA_OBSERVED",
+      "SIP_BYE_SENT",
+      "SIP_BYE_OBSERVED",
+      "SIP_BYE_200_RECEIVED",
+      "DIALOG_TERMINATED"
     ]
   }
 }

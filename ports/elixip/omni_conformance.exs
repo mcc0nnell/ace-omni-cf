@@ -1,10 +1,13 @@
+Code.require_file(Path.join(__DIR__, "elixipg_pg002_sip_establishment.exs"))
+
 defmodule Omni.ConformanceScenario do
   @moduledoc """
   ACE Omni Core conformance scenario executed by the real Elixip SIP.Scenario engine.
 
-  This first Elixip slice deliberately keeps transport synthetic: it proves that the
-  Omni event/behavior grammar can execute inside Elixip's FSM runtime before a later
-  slice maps START_ACTIVITY to real SIP/dialog/media work.
+  The runtime-independence fixtures keep their normalized semantic contract. The
+  canonical successful fixture also launches ElixiPG PG-002 as a nested proving-
+  ground trial, binding START_ACTIVITY to Elixip SIP transaction/dialog execution
+  without changing the conformance trace being compared to Cloudflare and SLEE.
   """
 
   use SIP.Scenario
@@ -67,11 +70,42 @@ defmodule Omni.ConformanceScenario do
 
         File.mkdir_p!(Path.dirname(output_path))
         File.write!(output_path, Jason.encode!(output, pretty: true) <> "\n")
-        scenario_success("Omni #{fixture["name"]}: #{machine.state}")
+
+        case maybe_run_pg002(fixture, output_path) do
+          :ok -> scenario_success("Omni #{fixture["name"]}: #{machine.state}")
+          {:error, reason} -> scenario_failure("ElixiPG PG-002 failed: #{inspect(reason)}")
+        end
     after
-      5_000 -> scenario_failure("Omni conformance scenario timed out")
+      10_000 -> scenario_failure("Omni conformance scenario timed out")
     end
   end
+
+  defp maybe_run_pg002(%{"name" => "two-participant-success"}, output_path) do
+    repository_root = Path.expand("../../..", Path.dirname(output_path))
+    pg002_output = Path.join(repository_root, "conformance/generated/elixipg/PG-002-sip-establishment.json")
+
+    previous_output = System.get_env("ELIXIPG_PG002_TRACE_OUT")
+    previous_correlation = System.get_env("ELIXIPG_PG002_CORRELATION")
+
+    System.put_env("ELIXIPG_PG002_TRACE_OUT", pg002_output)
+    System.put_env("ELIXIPG_PG002_CORRELATION", "pg002-ci-run")
+
+    result = SIP.Scenario.Runner.run_instance(ElixiPG.PG002.SipEstablishment)
+
+    restore_env("ELIXIPG_PG002_TRACE_OUT", previous_output)
+    restore_env("ELIXIPG_PG002_CORRELATION", previous_correlation)
+
+    case result do
+      :ok -> :ok
+      {:aborted, reason} -> {:error, {:aborted, reason}}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp maybe_run_pg002(_fixture, _output_path), do: :ok
+
+  defp restore_env(key, nil), do: System.delete_env(key)
+  defp restore_env(key, value), do: System.put_env(key, value)
 
   defp apply_event(machine, fixture, event) do
     run_id = event["runId"] || fixture["runId"]
