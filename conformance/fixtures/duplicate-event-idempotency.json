@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "name": "duplicate-event-idempotency",
+  "runId": "run-1",
+  "activityId": "call-1",
+  "observedAt": "2026-08-13T10:00:00Z",
+  "events": [
+    {"eventId":"join-a","type":"participant_joined","participantId":"caller"},
+    {"eventId":"join-a","type":"participant_joined","participantId":"caller"},
+    {"eventId":"join-b","type":"participant_joined","participantId":"callee"},
+    {"eventId":"join-b","type":"participant_joined","participantId":"callee"},
+    {"eventId":"started","type":"activity_started"},
+    {"eventId":"ended","type":"activity_ended"}
+  ],
+  "expected": {"terminalState":"COMPLETED","trace":[
+    {"eventId":"join-a","accepted":true,"state":"WAITING","commands":[],"observationDelta":0},
+    {"eventId":"join-a","accepted":false,"state":"WAITING","commands":[],"observationDelta":0},
+    {"eventId":"join-b","accepted":true,"state":"READY","commands":["START_ACTIVITY"],"observationDelta":0},
+    {"eventId":"join-b","accepted":false,"state":"READY","commands":[],"observationDelta":0},
+    {"eventId":"started","accepted":true,"state":"RUNNING","commands":[],"observationDelta":0},
+    {"eventId":"ended","accepted":true,"state":"COMPLETED","commands":[],"observationDelta":0}
+  ]}
+}
