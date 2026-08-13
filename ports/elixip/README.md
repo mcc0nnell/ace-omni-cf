@@ -1,8 +1,12 @@
-# Elixip Omni Runtime Adapter
+# ElixiPG — Elixip Proving Grounds
 
-This port is the third ACE Omni Core runtime target.
+This directory is the Elixip execution adapter used by **ElixiPG**, the Elixip Proving Grounds.
 
-It executes the canonical Omni conformance fixtures inside the real Elixip `SIP.Scenario` finite-state-machine engine. The current slice is deliberately transport-neutral: `START_ACTIVITY` is emitted as an abstract Omni command, while Elixip owns the state-machine execution and terminal success/failure semantics. A subsequent slice can map that command to actual SIP/dialog/media behavior without changing the Omni Core fixture format.
+ElixiPG treats Elixip as an executable communications world and ACE Omni Core as the experiment/evidence plane around it. The current port is the third ACE Omni Core runtime target and supplies the first proven proving-ground trial, **PG-001 Runtime Independence**.
+
+It executes the canonical Omni conformance fixtures inside the real Elixip `SIP.Scenario` finite-state-machine engine. The current slice is deliberately transport-neutral: `START_ACTIVITY` is emitted as an abstract Omni command, while Elixip owns the state-machine execution and terminal success/failure semantics. **PG-002 SIP Establishment** will replace that abstract command with an actual SIP INVITE/dialog path without changing the Omni Core evidence grammar.
+
+See `proving-grounds/README.md` and `proving-grounds/trials/` for the proving-ground contract and trial registry.
 
 ## Upstream pin
 
@@ -13,18 +17,22 @@ CI uses:
 - commit: `fd0f7bf703dddfcefcf2cb28205776a5a402e192`
 - scenario entry point: `mix scenario <scenario.exs>`
 
-Pinning the commit prevents a moving upstream runtime from silently changing conformance results.
+Pinning the commit prevents a moving upstream runtime from silently changing proving-ground results.
 
 ## Boundary
 
 ```text
-Omni fixture
+ElixiPG trial
+    ↓
+Omni fixture / command
     ↓
 ports/elixip/omni_conformance.exs
     ↓
 SIP.Scenario FSM
     ↓
 normalized Omni semantic trace
+    ↓
+ElixiPG evidence / verdict
 ```
 
 The scenario uses Elixip's own `state`, `on_events`, `goto`, `scenario_success`, and `scenario_failure` execution model. It does not copy or modify Elixip implementation source.
@@ -38,7 +46,13 @@ Current mapping:
 | input event | Elixir event consumed by `on_events` |
 | transition | `goto` + scenario state |
 | terminal outcome | `scenario_success` / `scenario_failure` |
-| `START_ACTIVITY` | abstract command; future SIP/dialog invocation |
+| `START_ACTIVITY` | abstract command; PG-002 maps this to SIP/dialog execution |
+
+## Authority boundary
+
+**Elixip makes communications happen. Omni records and evaluates what happened. ElixiPG defines the trial.**
+
+Elixip events and media observations are evidence inputs; they do not independently choose experiment identity, canonical trial inputs, evidence identity, or semantic verdicts.
 
 ## License boundary
 
@@ -53,6 +67,7 @@ Point `ELIXIP_DIR` at the pinned Elixip checkout, compile `apps/elixip2`, then r
 ```sh
 ELIXIP_DIR=/path/to/elixip bash scripts/run-elixip-conformance.sh
 npm run test:conformance
+npm run test:elixipg
 ```
 
 The generated traces live under `conformance/generated/elixip/` and are not committed.

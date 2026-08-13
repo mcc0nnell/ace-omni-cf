@@ -1,0 +1,30 @@
+{
+  "id": "PG-001",
+  "title": "Runtime Independence",
+  "status": "proven",
+  "objective": "Demonstrate that the same Omni Core experiment behavior produces equivalent semantic traces across Cloudflare Omni, JAIN SLEE Omni, and Elixip Omni.",
+  "executor": {
+    "kind": "omni-conformance",
+    "runtimes": ["cloudflare", "slee", "elixip"]
+  },
+  "fixtures": [
+    "duplicate-event-idempotency.json",
+    "duplicate-terminal-isolation.json",
+    "transport-timeout-failure.json",
+    "two-participant-success.json",
+    "wrong-correlation-isolation.json"
+  ],
+  "assertions": [
+    "semantic_trace_equivalence",
+    "terminal_state_equivalence",
+    "command_equivalence",
+    "observation_delta_equivalence",
+    "correlation_isolation",
+    "terminal_state_isolation"
+  ],
+  "evidence": {
+    "command": "npm run test:conformance",
+    "requiredRuntimes": ["cloudflare", "slee", "elixip"],
+    "generatedRoot": "conformance/generated"
+  }
+}

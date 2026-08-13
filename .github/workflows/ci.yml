@@ -102,6 +102,9 @@ jobs:
       - name: Compare Cloudflare, SLEE, and Elixip Omni Core semantic traces
         run: npm run test:conformance
 
+      - name: Validate ElixiPG proving-ground trials
+        run: npm run test:elixipg
+
       - name: Run Worker, D1, R2, and Durable Object integration tests
         run: npm run test:integration
 
