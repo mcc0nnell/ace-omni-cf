@@ -16,22 +16,27 @@ fi
 rm -rf "${OUTPUT_DIR}"
 mkdir -p "${OUTPUT_DIR}"
 
-count=0
-while IFS= read -r fixture; do
+# Materialize the fixture list before invoking Mix. `mix scenario` owns stdin
+# while the scenario runs, so driving this loop from process-substitution stdin
+# would let the first Elixip invocation consume the remaining fixture names.
+mapfile -t fixtures < <(
+  find "${FIXTURES_DIR}" -maxdepth 1 -type f -name '*.json' | sort
+)
+
+if [[ "${#fixtures[@]}" -eq 0 ]]; then
+  echo "No Omni conformance fixtures found in ${FIXTURES_DIR}" >&2
+  exit 1
+fi
+
+for fixture in "${fixtures[@]}"; do
   name="$(basename "${fixture}")"
   echo "Elixip Omni conformance: ${name}"
   (
     cd "${ELIXIP_DIR}/apps/elixip2"
     OMNI_FIXTURE="${fixture}" \
     OMNI_TRACE_OUT="${OUTPUT_DIR}/${name}" \
-      mix scenario "${SCENARIO}"
+      mix scenario "${SCENARIO}" </dev/null
   )
-  count=$((count + 1))
-done < <(find "${FIXTURES_DIR}" -maxdepth 1 -type f -name '*.json' | sort)
+done
 
-if [[ "${count}" -eq 0 ]]; then
-  echo "No Omni conformance fixtures found in ${FIXTURES_DIR}" >&2
-  exit 1
-fi
-
-echo "Elixip emitted ${count} Omni semantic traces."
+echo "Elixip emitted ${#fixtures[@]} Omni semantic traces."
