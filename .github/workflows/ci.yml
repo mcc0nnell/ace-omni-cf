@@ -20,6 +20,7 @@ jobs:
       CI: "true"
       WRANGLER_SEND_METRICS: "false"
       XDG_CONFIG_HOME: /tmp/ace-omni-xdg-ci
+      ELIXIP_DIR: ${{ github.workspace }}/.elixip-upstream
     steps:
       - name: Check out the exact revision
         uses: actions/checkout@v4
@@ -40,8 +41,30 @@ jobs:
           cache: maven
           cache-dependency-path: ports/jain-slee/pom.xml
 
+      - name: Use Elixir for Elixip conformance port
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.3"
+          elixir-version: "1.18.4"
+
+      - name: Check out pinned Elixip runtime
+        uses: actions/checkout@v4
+        with:
+          repository: neutrino38/elixip
+          ref: fd0f7bf703dddfcefcf2cb28205776a5a402e192
+          path: .elixip-upstream
+          persist-credentials: false
+
       - name: Compile and test JAIN SLEE conformance port
         run: mvn -B -f ports/jain-slee/pom.xml test
+
+      - name: Compile pinned Elixip scenario runtime
+        working-directory: .elixip-upstream/apps/elixip2
+        run: |
+          mix local.hex --force
+          mix local.rebar --force
+          mix deps.get
+          mix compile
 
       - name: Reject NUL-corrupted tracked source
         run: npm run check:integrity
@@ -73,7 +96,10 @@ jobs:
       - name: Run unit tests
         run: npm test
 
-      - name: Compare Cloudflare and SLEE Omni Core semantic traces
+      - name: Execute Omni fixtures through pinned Elixip
+        run: npm run test:conformance:elixip
+
+      - name: Compare Cloudflare, SLEE, and Elixip Omni Core semantic traces
         run: npm run test:conformance
 
       - name: Run Worker, D1, R2, and Durable Object integration tests
