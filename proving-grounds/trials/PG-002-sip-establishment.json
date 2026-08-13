@@ -1,7 +1,7 @@
 {
   "id": "PG-002",
   "title": "SIP Establishment",
-  "status": "runnable",
+  "status": "proven",
   "objective": "Bind Omni START_ACTIVITY to Elixip call establishment and preserve normalized signaling and media-connectivity evidence.",
   "executor": {
     "kind": "elixip-sip-scenario",
