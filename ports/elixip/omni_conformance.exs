@@ -81,7 +81,7 @@ defmodule Omni.ConformanceScenario do
   end
 
   defp maybe_run_pg002(%{"name" => "two-participant-success"}, output_path) do
-    repository_root = output_path |> Path.dirname() |> Path.expand("../../..")
+    repository_root = Path.expand("../../..", Path.dirname(output_path))
     pg002_output = Path.join(repository_root, "conformance/generated/elixipg/PG-002-sip-establishment.json")
 
     previous_output = System.get_env("ELIXIPG_PG002_TRACE_OUT")
