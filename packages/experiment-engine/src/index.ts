@@ -11,6 +11,10 @@ import {
 } from "@ace-omni/domain";
 
 export * from "./emulytics";
+export * from "./command-expansion";
+export * from "./scenario-ast";
+export * from "./scenario-registry";
+export * from "./scenario-compiler";
 
 export interface ScheduleExpansionInput {
   callId: string;
