@@ -4,6 +4,7 @@ import { isDeepStrictEqual } from "node:util";
 const FIXTURES_DIR = new URL("../conformance/fixtures/", import.meta.url);
 const CLOUDFLARE_DIR = new URL("../conformance/generated/cloudflare/", import.meta.url);
 const SLEE_DIR = new URL("../conformance/generated/slee/", import.meta.url);
+const ELIXIP_DIR = new URL("../conformance/generated/elixip/", import.meta.url);
 const TERMINAL = new Set(["COMPLETED", "FAILED"]);
 
 function runCloudflareSemanticAdapter(fixture) {
@@ -92,6 +93,17 @@ async function loadJson(url) {
   return JSON.parse(await readFile(url, "utf8"));
 }
 
+async function requireRuntimeTrace(runtime, directory, name) {
+  try {
+    return await loadJson(new URL(name, directory));
+  } catch (error) {
+    throw new Error(
+      `Missing ${runtime} trace for ${name}. Generate that runtime's conformance traces first.`,
+      { cause: error },
+    );
+  }
+}
+
 await rm(CLOUDFLARE_DIR, { recursive: true, force: true });
 await mkdir(CLOUDFLARE_DIR, { recursive: true });
 
@@ -103,26 +115,33 @@ for (const name of names) {
   const cloudflare = runCloudflareSemanticAdapter(fixture);
   await writeFile(new URL(name, CLOUDFLARE_DIR), `${JSON.stringify(cloudflare, null, 2)}\n`);
 
-  let slee;
-  try {
-    slee = await loadJson(new URL(name, SLEE_DIR));
-  } catch (error) {
-    throw new Error(
-      `Missing SLEE trace for ${name}. Run "mvn -B -f ports/jain-slee/pom.xml test" first.`,
-      { cause: error },
-    );
-  }
+  const slee = await requireRuntimeTrace("SLEE", SLEE_DIR, name);
+  const elixip = await requireRuntimeTrace("Elixip", ELIXIP_DIR, name);
+  const oracle = fixture.expected;
 
-  if (!isDeepStrictEqual(comparable(cloudflare), fixture.expected)) {
+  if (!isDeepStrictEqual(comparable(cloudflare), oracle)) {
     throw new Error(`Cloudflare semantic trace diverged from fixture oracle: ${fixture.name}`);
   }
-  if (!isDeepStrictEqual(comparable(slee), fixture.expected)) {
+  if (!isDeepStrictEqual(comparable(slee), oracle)) {
     throw new Error(`SLEE semantic trace diverged from fixture oracle: ${fixture.name}`);
   }
-  if (!isDeepStrictEqual(comparable(cloudflare), comparable(slee))) {
-    throw new Error(`Runtime semantic divergence: ${fixture.name}`);
+  if (!isDeepStrictEqual(comparable(elixip), oracle)) {
+    throw new Error(`Elixip semantic trace diverged from fixture oracle: ${fixture.name}`);
   }
-  console.log(`✓ ${fixture.name}: ${fixture.events.length} events, ${fixture.expected.terminalState}`);
+
+  const cloudflareComparable = comparable(cloudflare);
+  if (!isDeepStrictEqual(cloudflareComparable, comparable(slee))) {
+    throw new Error(`Cloudflare/SLEE semantic divergence: ${fixture.name}`);
+  }
+  if (!isDeepStrictEqual(cloudflareComparable, comparable(elixip))) {
+    throw new Error(`Cloudflare/Elixip semantic divergence: ${fixture.name}`);
+  }
+
+  console.log(
+    `✓ ${fixture.name}: ${fixture.events.length} events, ${fixture.expected.terminalState} — Cloudflare ≡ SLEE ≡ Elixip`,
+  );
 }
 
-console.log(`Omni Core conformance passed: ${names.length} fixtures are semantically equivalent.`);
+console.log(
+  `Omni Core conformance passed: ${names.length} fixtures are semantically equivalent across three runtimes.`,
+);
