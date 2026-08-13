@@ -1,0 +1,33 @@
+{
+  "id": "PG-002",
+  "title": "SIP Establishment",
+  "status": "planned",
+  "objective": "Bind Omni START_ACTIVITY to a real Elixip SIP INVITE/dialog lifecycle and normalize resulting signaling and media observations back into Omni Core evidence.",
+  "executor": {
+    "kind": "elixip-sip-scenario",
+    "runtime": "elixip"
+  },
+  "plannedFlow": [
+    "START_ACTIVITY",
+    "SIP_INVITE",
+    "PROVISIONAL_RESPONSE",
+    "DIALOG_ESTABLISHED",
+    "MEDIA_OBSERVED",
+    "DIALOG_TERMINATED"
+  ],
+  "assertions": [
+    "dialog_establishes_or_fails_explicitly",
+    "signaling_events_preserve_trial_correlation",
+    "media_observations_do_not_become_authority",
+    "teardown_reaches_terminal_state",
+    "late_events_cannot_reopen_terminal_state"
+  ],
+  "evidence": {
+    "requiredBeforeProven": [
+      "real Elixip SIP scenario execution",
+      "normalized Omni semantic trace",
+      "preserved signaling observations",
+      "terminal verdict"
+    ]
+  }
+}
