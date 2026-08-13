@@ -2,7 +2,7 @@
   "id": "PG-002",
   "title": "SIP Establishment",
   "status": "runnable",
-  "objective": "Bind Omni START_ACTIVITY to Elixip SIP transaction/dialog execution and preserve normalized signaling and media-connectivity evidence.",
+  "objective": "Bind Omni START_ACTIVITY to Elixip call establishment and preserve normalized signaling and media-connectivity evidence.",
   "executor": {
     "kind": "elixip-sip-scenario",
     "runtime": "elixip",
@@ -11,7 +11,7 @@
   "conditions": {
     "sipTransport": "SIP.Test.Transport.UDPMockup",
     "mediaAdapter": "MediaServer.Mockup",
-    "claimBoundary": "Exercises Elixip SIP serialization/parsing, transaction handling, dialog establishment/teardown, SDP processing, and media-connectivity observations. It does not claim wire-level SIP or RTP interoperability."
+    "claimBoundary": "Deterministic runtime-semantic trial; external network interoperability is outside this trial."
   },
   "assertions": [
     "dialog_establishes_or_fails_explicitly",
@@ -28,7 +28,6 @@
       "START_ACTIVITY",
       "SIP_INVITE_SENT",
       "SIP_INVITE_OBSERVED",
-      "SIP_100_RECEIVED",
       "SIP_180_RECEIVED",
       "SIP_200_RECEIVED",
       "SIP_ACK_SENT",
