@@ -118,6 +118,37 @@ describe("experiment IR compiler", () => {
     ]);
   });
 
+  it("orders all runnable setup work before independent exercise work", () => {
+    const independent: ExperimentDefinition = {
+      schemaVersion: 1,
+      id: "phase-ordering",
+      title: "Synthetic phase ordering",
+      tasks: [
+        {
+          id: "a-exercise",
+          phase: "exercise",
+          dependsOn: [],
+          commands: [],
+          expectedEvidence: [],
+          metadata: {},
+        },
+        {
+          id: "z-setup",
+          phase: "setup",
+          dependsOn: [],
+          commands: [],
+          expectedEvidence: [],
+          metadata: {},
+        },
+      ],
+      metadata: {},
+    };
+
+    const compiled = compileExperiment({ definition: independent, providers: [] });
+    expect(compiled.orderedTasks.map((task) => task.id)).toEqual(["z-setup", "a-exercise"]);
+    expect(compiled.baselineSeal.setupTaskIds).toEqual(["z-setup"]);
+  });
+
   it("seals only setup state into the T=0 baseline digest", () => {
     const compiled = compileExperiment({ definition: definition(), providers: providers() });
     expect(compiled.baselineSeal.setupTaskIds).toEqual(["capture-baseline"]);
