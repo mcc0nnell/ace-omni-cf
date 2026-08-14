@@ -169,6 +169,12 @@ function topologicalOrder(tasks: ExperimentTask[]): ExperimentTask[] {
   const byId = new Map(tasks.map((task) => [task.id, task]));
   const indegree = new Map(tasks.map((task) => [task.id, 0]));
   const dependents = new Map(tasks.map((task) => [task.id, [] as string[]]));
+  const compareReady = (leftId: string, rightId: string): number => {
+    const left = byId.get(leftId)!;
+    const right = byId.get(rightId)!;
+    const phaseOrder = (left.phase === "setup" ? 0 : 1) - (right.phase === "setup" ? 0 : 1);
+    return phaseOrder || leftId.localeCompare(rightId);
+  };
 
   for (const task of tasks) {
     const uniqueDependencies = [...new Set(task.dependsOn)];
@@ -197,7 +203,7 @@ function topologicalOrder(tasks: ExperimentTask[]): ExperimentTask[] {
   const ready = tasks
     .filter((task) => (indegree.get(task.id) ?? 0) === 0)
     .map((task) => task.id)
-    .sort();
+    .sort(compareReady);
   const ordered: ExperimentTask[] = [];
 
   while (ready.length > 0) {
@@ -208,7 +214,7 @@ function topologicalOrder(tasks: ExperimentTask[]): ExperimentTask[] {
       indegree.set(dependentId, nextIndegree);
       if (nextIndegree === 0) {
         ready.push(dependentId);
-        ready.sort();
+        ready.sort(compareReady);
       }
     }
   }
