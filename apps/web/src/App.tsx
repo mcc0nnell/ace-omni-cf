@@ -6,6 +6,7 @@ import ExperimentPage from "./pages/ExperimentPage";
 import JoinPage from "./pages/JoinPage";
 import CallPage from "./pages/CallPage";
 import ResearchCallPage from "./pages/ResearchCallPage";
+import OmniWorkspacePage from "./pages/OmniWorkspacePage";
 import type { User } from "./lib/api";
 
 function Shell({
@@ -44,6 +45,9 @@ function Shell({
         <nav aria-label="Primary">
           {user ? (
             <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+              <a href="/omni" style={{ color: "var(--omni-color-text)", fontSize: "0.9rem" }}>
+                Spatial workspace
+              </a>
               <span style={{ color: "var(--omni-color-text-muted)", fontSize: "0.9rem" }}>
                 {user.displayName} ({user.role})
               </span>
@@ -136,6 +140,14 @@ export default function App() {
     return (
       <Shell user={user} onLogout={handleLogout}>
         <DashboardPage user={user} />
+      </Shell>
+    );
+  }
+
+  if (path === "/omni") {
+    return (
+      <Shell user={user} onLogout={handleLogout}>
+        <OmniWorkspacePage />
       </Shell>
     );
   }
