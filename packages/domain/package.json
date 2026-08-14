@@ -7,7 +7,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./regime": "./src/regime.ts"
+    "./regime": "./src/regime.ts",
+    "./experiment-ir": "./src/experiment-ir.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
