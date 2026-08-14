@@ -221,9 +221,13 @@ describe("regime compiler", () => {
 
   it("fails closed on ambiguous control redefinition", async () => {
     const duplicate = overlayLayer();
+    const sourceControl = baseLayer().controls[0];
+    if (sourceControl.mode === "exclude") {
+      throw new Error("Synthetic baseline fixture unexpectedly excluded ac-2");
+    }
     duplicate.controls = [
       {
-        ...baseLayer().controls[0],
+        ...sourceControl,
         mode: "define",
         sourceRefs: ["agency-policy"],
       },
