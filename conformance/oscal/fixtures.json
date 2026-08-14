@@ -1,0 +1,29 @@
+{
+  "source": {
+    "repository": "usnistgov/oscal-content",
+    "commit": "78650f02ad9321bb7b817846f8fbd4f2bcd620de",
+    "license": "US Government public domain / CC0-1.0"
+  },
+  "documents": [
+    {
+      "id": "ifa-ssp",
+      "model": "system-security-plan",
+      "path": "examples/ssp/json/ifa_ssp.json"
+    },
+    {
+      "id": "ifa-assessment-plan",
+      "model": "assessment-plan",
+      "path": "examples/ap/json/ifa_assessment-plan.json"
+    },
+    {
+      "id": "ifa-assessment-results",
+      "model": "assessment-results",
+      "path": "examples/ar/json/ifa_assessment-results.json"
+    },
+    {
+      "id": "ifa-poam",
+      "model": "plan-of-action-and-milestones",
+      "path": "examples/poam/json/ifa_plan-of-action-and-milestones.json"
+    }
+  ]
+}

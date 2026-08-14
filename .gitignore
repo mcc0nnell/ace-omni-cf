@@ -10,6 +10,7 @@ playwright-report/
 test-results/
 conformance/generated/
 .elixip-upstream/
+.oscal-content-upstream/
 *.local
 .env
 .env.*
