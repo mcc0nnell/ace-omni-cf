@@ -160,22 +160,25 @@ describe("regime assessment packs", () => {
   it("rejects required evidence that no evaluator actually consumes", async () => {
     const layer = regimeLayer();
     const control = layer.controls[0];
-    if (control.mode === "exclude") throw new Error("fixture unexpectedly excluded");
-    control.evaluatorBindings = [
-      {
-        ...control.evaluatorBindings[0],
-        evidenceRequirementIds: [],
-      },
-    ];
+    if (!control || control.mode === "exclude") throw new Error("fixture unexpectedly excluded");
+    control.evidenceRequirements.push({
+      id: "account-log",
+      kind: "log",
+      description: "Required lifecycle log not consumed by the evaluator",
+      required: true,
+      producerCapabilities: ["config.read"],
+      mediaTypes: ["application/jsonl"],
+    });
 
-    await expect(
-      compileRegime({
-        schemaVersion: 1,
-        id: "invalid-effective",
-        title: "Invalid effective regime",
-        layers: [layer],
-      }).then((regime) => compileAssessmentPack(regime, pack(regime.id, regime.sha256))),
-    ).rejects.toThrow();
+    const regime = await compileRegime({
+      schemaVersion: 1,
+      id: "invalid-effective",
+      title: "Invalid effective regime",
+      layers: [layer],
+    });
+    await expect(compileAssessmentPack(regime, pack(regime.id, regime.sha256))).rejects.toThrow(
+      "Required evidence ac-2/account-log is not consumed by any evaluator binding",
+    );
   });
 
   it("keeps absent assertions as needs_review, then allows or blocks from regime policy", async () => {
