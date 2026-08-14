@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./regime": "./src/regime.ts",
-    "./experiment-ir": "./src/experiment-ir.ts"
+    "./experiment-ir": "./src/experiment-ir.ts",
+    "./sceptre-world": "./src/sceptre-world.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
