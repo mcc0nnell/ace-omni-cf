@@ -11,6 +11,7 @@ import {
 } from "@ace-omni/domain";
 
 export * from "./emulytics";
+export * from "./assessment";
 
 export interface ScheduleExpansionInput {
   callId: string;
