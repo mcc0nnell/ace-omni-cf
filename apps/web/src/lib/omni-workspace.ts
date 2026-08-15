@@ -66,6 +66,7 @@ export type OmniWorkspaceEvent =
       findingId: string;
       severity: "low" | "moderate" | "high" | "critical";
       summary: string;
+      basisNodeIds?: string[];
     };
 
 export type OmniWorkspaceNodeKind =
@@ -95,7 +96,7 @@ export interface OmniWorkspaceEdge {
   id: string;
   from: string;
   to: string;
-  kind: "decomposes" | "owns" | "asserts" | "supports" | "challenges" | "produces";
+  kind: "decomposes" | "owns" | "asserts" | "supports" | "challenges" | "produces" | "grounds";
 }
 
 export interface OmniWorkspaceState {
@@ -148,6 +149,7 @@ interface FindingRecord {
   taskId: string;
   severity: "low" | "moderate" | "high" | "critical";
   summary: string;
+  basisNodeIds: string[];
   firstSequence: number;
 }
 
@@ -318,6 +320,7 @@ export function composeOmniWorkspace(
           taskId: event.taskId,
           severity: event.severity,
           summary: event.summary,
+          basisNodeIds: [...(event.basisNodeIds ?? [])],
           firstSequence: event.sequence,
         });
         break;
@@ -455,9 +458,25 @@ export function composeOmniWorkspace(
       to: `claim:${contradiction.claimId}`,
       kind: "challenges",
     });
+    edges.push({
+      id: `grounds:${contradiction.evidenceId}:${contradiction.contradictionId}`,
+      from: `evidence:${contradiction.evidenceId}`,
+      to: `contradiction:${contradiction.contradictionId}`,
+      kind: "grounds",
+    });
   }
 
   for (const finding of findings.values()) {
+    const basisNodeIds = [...new Set(finding.basisNodeIds)];
+    const existingNodes = new Map(nodes.map((node) => [node.id, node]));
+    for (const basisNodeId of basisNodeIds) {
+      const basis = existingNodes.get(basisNodeId);
+      if (!basis) throw new Error(`finding.created references unknown basis node ${basisNodeId}`);
+      if (basis.firstSequence >= finding.firstSequence) {
+        throw new Error(`finding.created basis ${basisNodeId} must exist before finding ${finding.findingId}`);
+      }
+    }
+
     nodes.push({
       id: `finding:${finding.findingId}`,
       kind: "finding",
@@ -475,6 +494,14 @@ export function composeOmniWorkspace(
       to: `finding:${finding.findingId}`,
       kind: "produces",
     });
+    for (const basisNodeId of basisNodeIds) {
+      edges.push({
+        id: `grounds:${basisNodeId}:finding:${finding.findingId}`,
+        from: basisNodeId,
+        to: `finding:${finding.findingId}`,
+        kind: "grounds",
+      });
+    }
   }
 
   const allowed = visibleKinds(projection);
@@ -570,5 +597,6 @@ export const SC7_WORKSPACE_EVENTS: readonly OmniWorkspaceEvent[] = [
     findingId: "finding-sc7-001",
     severity: "high",
     summary: "Boundary configuration contradicts the SSP implementation statement",
+    basisNodeIds: ["contradiction:sc7-public-admin"],
   },
 ] as const;
