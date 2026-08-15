@@ -1,0 +1,325 @@
+{
+  "catalog": {
+    "uuid": "4d3e14cb-4fe5-4ee9-a828-b640c9fd1392",
+    "metadata": {
+      "title": "ACE Omni Accessibility Assurance Controls — Experimental",
+      "published": "2026-08-14T22:24:00-04:00",
+      "last-modified": "2026-08-14T22:24:00-04:00",
+      "version": "0.1.0",
+      "oscal-version": "1.2.2",
+      "remarks": "Experimental reference content for expressing accessibility governance, assessment, evidence, remediation, and continuous monitoring in OSCAL. This is not an official NIST, U.S. Access Board, GSA, or W3C publication and does not replace authoritative Section 508 or WCAG requirements."
+    },
+    "groups": [
+      {
+        "id": "ax",
+        "title": "Accessibility Assurance",
+        "props": [
+          {
+            "name": "label",
+            "value": "AX"
+          }
+        ],
+        "controls": [
+          {
+            "id": "ax-1",
+            "title": "Accessibility Applicability and Scope",
+            "props": [
+              {
+                "name": "label",
+                "value": "AX-1"
+              },
+              {
+                "name": "status",
+                "value": "experimental"
+              }
+            ],
+            "parts": [
+              {
+                "id": "ax-1_smt",
+                "name": "statement",
+                "prose": "Identify the information and communication technology within the system or acquisition scope, determine the applicable accessibility requirements and scoping provisions, and record any claimed exception or alternative basis with its governing authority and rationale."
+              },
+              {
+                "id": "ax-1_gdn",
+                "name": "guidance",
+                "parts": [
+                  {
+                    "id": "ax-1_obj.1",
+                    "name": "objective",
+                    "prose": "Determine whether every in-scope ICT component is traceable to the accessibility requirements that apply to it and whether exclusions or exceptions are explicit rather than implicit."
+                  }
+                ]
+              }
+            ],
+            "links": [
+              {
+                "href": "#81c2d1ab-9b9e-45f9-b877-bd71694ea92f",
+                "rel": "reference"
+              },
+              {
+                "href": "#691f25f1-ebb3-4f22-9645-ef5196793476",
+                "rel": "reference"
+              },
+              {
+                "href": "#f5d724b3-c8c2-490d-9dc5-9f8ad059ec24",
+                "rel": "reference"
+              }
+            ]
+          },
+          {
+            "id": "ax-2",
+            "title": "Accessibility Implementation Traceability",
+            "props": [
+              {
+                "name": "label",
+                "value": "AX-2"
+              },
+              {
+                "name": "status",
+                "value": "experimental"
+              }
+            ],
+            "parts": [
+              {
+                "id": "ax-2_smt",
+                "name": "statement",
+                "prose": "Maintain current, machine-readable implementation claims that trace applicable accessibility controls to the system components, services, procedures, inherited capabilities, and responsible parties that implement them."
+              },
+              {
+                "id": "ax-2_gdn",
+                "name": "guidance",
+                "parts": [
+                  {
+                    "id": "ax-2_obj.1",
+                    "name": "objective",
+                    "prose": "Determine whether accessibility implementation claims are complete, attributable, current, and connected to the same OSCAL control identifiers used by assessment and remediation artifacts."
+                  }
+                ]
+              }
+            ],
+            "links": [
+              {
+                "href": "#2c7395fd-2750-43b6-9684-813d89824959",
+                "rel": "reference"
+              }
+            ]
+          },
+          {
+            "id": "ax-3",
+            "title": "Accessibility Assessment Evidence",
+            "props": [
+              {
+                "name": "label",
+                "value": "AX-3"
+              },
+              {
+                "name": "status",
+                "value": "experimental"
+              }
+            ],
+            "parts": [
+              {
+                "id": "ax-3_smt",
+                "name": "statement",
+                "prose": "Assess applicable accessibility controls using reproducible methods and retain evidence sufficient to identify what was tested, the test scope, the environment, the tools and methods used, when the assessment occurred, what was observed, and who or what performed the assessment."
+              },
+              {
+                "id": "ax-3_gdn",
+                "name": "guidance",
+                "parts": [
+                  {
+                    "id": "ax-3_obj.1",
+                    "name": "objective",
+                    "prose": "Determine whether automated, manual, hybrid, assistive-technology, and other relevant test evidence can be reproduced and traced to the controls and system elements assessed."
+                  }
+                ]
+              }
+            ],
+            "links": [
+              {
+                "href": "#64604e4d-9af1-4764-ac39-3c10954f58d7",
+                "rel": "reference"
+              },
+              {
+                "href": "#7587357a-38e7-4712-b5d4-31d68d3f4e6d",
+                "rel": "reference"
+              },
+              {
+                "href": "#e617fe61-e1ed-4445-ac67-9bf3aee611ec",
+                "rel": "reference"
+              }
+            ]
+          },
+          {
+            "id": "ax-4",
+            "title": "Accessibility Findings and Remediation",
+            "props": [
+              {
+                "name": "label",
+                "value": "AX-4"
+              },
+              {
+                "name": "status",
+                "value": "experimental"
+              }
+            ],
+            "parts": [
+              {
+                "id": "ax-4_smt",
+                "name": "statement",
+                "prose": "Represent accessibility nonconformance as assessment findings and associated risks, assign remediation responsibility and milestones, preserve disposition decisions, and verify remediation before closing the finding."
+              },
+              {
+                "id": "ax-4_gdn",
+                "name": "guidance",
+                "parts": [
+                  {
+                    "id": "ax-4_obj.1",
+                    "name": "objective",
+                    "prose": "Determine whether accessibility deficiencies remain visible through the assessment-results and POA&M lifecycle until remediation is verified or an authorized disposition is recorded."
+                  }
+                ]
+              }
+            ],
+            "links": [
+              {
+                "href": "#e617fe61-e1ed-4445-ac67-9bf3aee611ec",
+                "rel": "reference"
+              },
+              {
+                "href": "#b2c3336d-fce3-4689-a919-50f46c876980",
+                "rel": "reference"
+              }
+            ]
+          },
+          {
+            "id": "ax-5",
+            "title": "Continuous Accessibility Monitoring",
+            "props": [
+              {
+                "name": "label",
+                "value": "AX-5"
+              },
+              {
+                "name": "status",
+                "value": "experimental"
+              }
+            ],
+            "parts": [
+              {
+                "id": "ax-5_smt",
+                "name": "statement",
+                "prose": "Define and execute periodic and change-triggered accessibility assessment activities so that material changes to user interfaces, content, components, dependencies, or operating environments can produce fresh evidence and findings before stale conformance claims are relied upon."
+              },
+              {
+                "id": "ax-5_gdn",
+                "name": "guidance",
+                "parts": [
+                  {
+                    "id": "ax-5_obj.1",
+                    "name": "objective",
+                    "prose": "Determine whether the organization has an explicit cadence and change-trigger policy for reassessing accessibility and whether current evidence is distinguishable from superseded evidence."
+                  }
+                ]
+              }
+            ],
+            "links": [
+              {
+                "href": "#e617fe61-e1ed-4445-ac67-9bf3aee611ec",
+                "rel": "reference"
+              },
+              {
+                "href": "#b2c3336d-fce3-4689-a919-50f46c876980",
+                "rel": "reference"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "back-matter": {
+      "resources": [
+        {
+          "uuid": "81c2d1ab-9b9e-45f9-b877-bd71694ea92f",
+          "title": "U.S. Access Board — Revised 508 Standards and 255 Guidelines",
+          "rlinks": [
+            {
+              "href": "https://www.access-board.gov/ict/",
+              "media-type": "text/html"
+            }
+          ]
+        },
+        {
+          "uuid": "691f25f1-ebb3-4f22-9645-ef5196793476",
+          "title": "Section508.gov — Applicability and Conformance Requirements",
+          "rlinks": [
+            {
+              "href": "https://www.section508.gov/develop/applicability-conformance/",
+              "media-type": "text/html"
+            }
+          ]
+        },
+        {
+          "uuid": "f5d724b3-c8c2-490d-9dc5-9f8ad059ec24",
+          "title": "W3C — Web Content Accessibility Guidelines (WCAG) 2.0",
+          "rlinks": [
+            {
+              "href": "https://www.w3.org/TR/WCAG20/",
+              "media-type": "text/html"
+            }
+          ]
+        },
+        {
+          "uuid": "64604e4d-9af1-4764-ac39-3c10954f58d7",
+          "title": "Section508.gov — Essential Elements of an Accessibility Test Report",
+          "rlinks": [
+            {
+              "href": "https://www.section508.gov/test/elements-of-an-accessibility-test-report/",
+              "media-type": "text/html"
+            }
+          ]
+        },
+        {
+          "uuid": "7587357a-38e7-4712-b5d4-31d68d3f4e6d",
+          "title": "Section508.gov — Accessibility Conformance Report Library and OpenACR",
+          "rlinks": [
+            {
+              "href": "https://www.section508.gov/accessibility-conformance-reports/",
+              "media-type": "text/html"
+            }
+          ]
+        },
+        {
+          "uuid": "2c7395fd-2750-43b6-9684-813d89824959",
+          "title": "NIST OSCAL — Layers and Models",
+          "rlinks": [
+            {
+              "href": "https://pages.nist.gov/OSCAL/learn/concepts/layer/",
+              "media-type": "text/html"
+            }
+          ]
+        },
+        {
+          "uuid": "e617fe61-e1ed-4445-ac67-9bf3aee611ec",
+          "title": "NIST OSCAL — Assessment Layer",
+          "rlinks": [
+            {
+              "href": "https://pages.nist.gov/OSCAL/learn/concepts/layer/assessment/",
+              "media-type": "text/html"
+            }
+          ]
+        },
+        {
+          "uuid": "b2c3336d-fce3-4689-a919-50f46c876980",
+          "title": "Section508.gov — Section 508 Accessibility Integration in the Software Development Lifecycle",
+          "rlinks": [
+            {
+              "href": "https://www.section508.gov/develop/raci-matrix-for-section-508-in-sdlc/",
+              "media-type": "text/html"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

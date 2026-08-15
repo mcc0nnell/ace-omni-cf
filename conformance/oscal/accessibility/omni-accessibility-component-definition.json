@@ -1,0 +1,70 @@
+{
+  "component-definition": {
+    "uuid": "ee979b3b-8710-47b7-8738-9cddab8f5280",
+    "metadata": {
+      "title": "ACE Omni Accessibility Assurance Component Definition — Experimental",
+      "published": "2026-08-14T22:24:00-04:00",
+      "last-modified": "2026-08-14T22:24:00-04:00",
+      "version": "0.1.0",
+      "oscal-version": "1.2.2",
+      "remarks": "Experimental OSCAL Component Definition describing how the Omni assurance execution path can support the AX accessibility-assurance controls. It makes no claim that Omni itself satisfies the technical accessibility requirements of a system under assessment."
+    },
+    "components": [
+      {
+        "uuid": "73c9a8b4-ac00-4c89-98e8-40bcc2044f4a",
+        "type": "software",
+        "title": "ACE Omni Accessibility Assurance Execution",
+        "description": "A deterministic assurance execution component that binds accessibility control claims to assessment work, evidence provenance, findings, remediation state, and replayable causal traces using OSCAL as the governing compliance model.",
+        "purpose": "Execute and evidence accessibility assurance workflows without introducing a parallel accessibility compliance schema.",
+        "control-implementations": [
+          {
+            "uuid": "4e9c17ac-875e-499a-b782-43a657727d04",
+            "source": "#593a2e4c-c233-4670-bf75-7131af2b47ff",
+            "description": "Implementation claims against the experimental Federal ICT Accessibility Assurance Profile.",
+            "implemented-requirements": [
+              {
+                "uuid": "2c2f058a-e8b0-4b37-b877-f636e8d06441",
+                "control-id": "ax-1",
+                "description": "Omni can preserve an explicit, versioned assessment scope and the authoritative control identifiers selected for a run so applicability decisions are visible inputs rather than implicit assumptions."
+              },
+              {
+                "uuid": "2ab20abb-f94d-4b2b-a39a-98e17d50e4e9",
+                "control-id": "ax-2",
+                "description": "Omni binds control identifiers to implementation claims, assessment work, observations, and evidence so control state can be traced across the assurance graph."
+              },
+              {
+                "uuid": "b132557b-03f3-4e66-901e-efe26aeb53cd",
+                "control-id": "ax-3",
+                "description": "Omni records deterministic execution inputs, tool or adapter provenance, observations, evidence references, and replay information so accessibility assessment evidence can be reproduced and inspected."
+              },
+              {
+                "uuid": "4d631099-6e06-4376-b0bc-d16f31912fb4",
+                "control-id": "ax-4",
+                "description": "Omni preserves the causal path from observation to finding to remediation work while OSCAL Assessment Results and POA&M remain the governing models for reportable findings, risks, dispositions, and milestones."
+              },
+              {
+                "uuid": "db284f6d-aab4-4a25-8323-c8dd2e55e3dc",
+                "control-id": "ax-5",
+                "description": "Omni can rerun pinned assessment definitions after scheduled or material-change triggers and distinguish fresh evidence from superseded evidence through immutable versions and provenance."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "back-matter": {
+      "resources": [
+        {
+          "uuid": "593a2e4c-c233-4670-bf75-7131af2b47ff",
+          "title": "ACE Omni Federal ICT Accessibility Assurance Profile — Experimental",
+          "rlinks": [
+            {
+              "href": "./federal-ict-profile.json",
+              "media-type": "application/json"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

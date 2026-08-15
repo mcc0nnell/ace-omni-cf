@@ -1,0 +1,32 @@
+{
+  "profile": {
+    "uuid": "4f241204-4355-4d1a-b2e4-ea406ce53953",
+    "metadata": {
+      "title": "ACE Omni Federal ICT Accessibility Assurance Profile — Experimental",
+      "published": "2026-08-14T22:24:00-04:00",
+      "last-modified": "2026-08-14T22:24:00-04:00",
+      "version": "0.1.0",
+      "oscal-version": "1.2.2",
+      "remarks": "Experimental OSCAL profile selecting the complete initial AX accessibility-assurance control family. This profile does not itself determine statutory applicability and is not an official federal baseline."
+    },
+    "imports": [
+      {
+        "href": "./accessibility-assurance-catalog.json",
+        "include-controls": [
+          {
+            "with-ids": [
+              "ax-1",
+              "ax-2",
+              "ax-3",
+              "ax-4",
+              "ax-5"
+            ]
+          }
+        ]
+      }
+    ],
+    "merge": {
+      "flat": {}
+    }
+  }
+}
