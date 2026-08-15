@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ace-omni-ci-${{ github.ref }}
@@ -81,13 +81,18 @@ jobs:
       - name: Generate dependency-audit remediation candidate
         run: npm audit fix --package-lock-only
 
-      - name: Preserve corrected lockfile candidate
-        uses: actions/upload-artifact@v4
-        with:
-          name: audit-lockfile-${{ github.run_id }}
-          if-no-files-found: error
-          retention-days: 1
-          path: package-lock.json
+      - name: Commit corrected lockfile to PR branch
+        if: github.event_name == 'pull_request'
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile already clean"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "fix: update vulnerable nanoid lock entry"
+          git push origin HEAD:${{ github.head_ref }}
 
       - name: Reject known dependency vulnerabilities
         run: npm run audit:dependencies
