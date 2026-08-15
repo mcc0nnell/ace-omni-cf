@@ -1,50 +1,81 @@
 /*
  * ACE Omni semantic design tokens.
- * The vocabulary is adapted from the repository owner's SF26 broadcast UI
- * architecture. No SF26 brand names, marks, copy, or visual assets are used.
+ *
+ * The application UI adopts the repository owner's Resilience Atlas Design
+ * Canon v4.0 material, motion, provenance, age, accessibility, and evidence
+ * semantics. OSCAL remains the assurance ontology; Atlas governs rendering.
  */
 
 /* TOKEN_SOURCE_START */
 :root {
-  color-scheme: dark light;
+  color-scheme: light dark;
 
   --omni-palette-white: #ffffff;
   --omni-palette-black: #000000;
-  --omni-palette-dark-canvas: #0f1419;
-  --omni-palette-dark-surface: #182230;
-  --omni-palette-dark-surface-raised: #243244;
-  --omni-palette-dark-text: #f8fafc;
-  --omni-palette-dark-muted: #b6c2d0;
-  --omni-palette-dark-border: #475569;
-  --omni-palette-light-canvas: #f8fafc;
-  --omni-palette-light-surface: #ffffff;
-  --omni-palette-light-surface-raised: #eef2f7;
-  --omni-palette-light-text: #0f172a;
-  --omni-palette-light-muted: #475569;
-  --omni-palette-light-border: #94a3b8;
-  --omni-palette-action: #1d4ed8;
-  --omni-palette-success: #15803d;
-  --omni-palette-danger: #dc2626;
-  --omni-palette-focus-dark: #fde047;
-  --omni-palette-focus-light: #1d4ed8;
+
+  --omni-material-paper: #f4f0e6;
+  --omni-material-cardstock: #ede7d9;
+  --omni-material-kraft: #c4a882;
+  --omni-material-recycled: #e6e0d4;
+  --omni-material-graph: #f0ebe0;
+  --omni-material-aged: #e8dfd0;
+  --omni-material-wood: #8b7355;
+  --omni-material-wood-warm: #a08b6e;
+  --omni-material-metal: #6b6560;
+  --omni-material-metal-dark: #3d3830;
+  --omni-material-acetate-clear: rgba(255, 252, 245, 0.68);
+  --omni-material-acetate-accessibility: rgba(42, 110, 138, 0.16);
+  --omni-material-acetate-hazard: rgba(168, 58, 42, 0.14);
+
+  --omni-ink-primary: #1c1915;
+  --omni-ink-annotation: #3d3830;
+  --omni-ink-stamp-red: #8b2e1f;
+  --omni-ink-stamp-blue: #1f3a5f;
+  --omni-ink-faded: #8a8478;
+  --omni-ink-pencil: #5c564c;
+
+  --omni-palette-light-canvas: var(--omni-material-wood);
+  --omni-palette-light-surface: var(--omni-material-paper);
+  --omni-palette-light-surface-raised: var(--omni-material-cardstock);
+  --omni-palette-light-text: var(--omni-ink-primary);
+  --omni-palette-light-muted: var(--omni-ink-pencil);
+  --omni-palette-light-border: var(--omni-material-metal);
+
+  --omni-palette-dark-canvas: var(--omni-ink-primary);
+  --omni-palette-dark-surface: var(--omni-ink-annotation);
+  --omni-palette-dark-surface-raised: var(--omni-ink-pencil);
+  --omni-palette-dark-text: var(--omni-material-paper);
+  --omni-palette-dark-muted: var(--omni-material-recycled);
+  --omni-palette-dark-border: var(--omni-material-metal);
+
+  --omni-palette-action: var(--omni-ink-stamp-blue);
+  --omni-palette-success: #315b3a;
+  --omni-palette-danger: var(--omni-ink-stamp-red);
+  --omni-palette-focus-light: var(--omni-ink-stamp-blue);
+  --omni-palette-focus-dark: var(--omni-material-paper);
   --omni-palette-caption-canvas: #020617;
   --omni-palette-caption-text: #f8fafc;
 
-  --omni-color-canvas: var(--omni-palette-dark-canvas);
-  --omni-color-surface: var(--omni-palette-dark-surface);
-  --omni-color-surface-raised: var(--omni-palette-dark-surface-raised);
-  --omni-color-text: var(--omni-palette-dark-text);
-  --omni-color-text-muted: var(--omni-palette-dark-muted);
-  --omni-color-border: var(--omni-palette-dark-border);
+  --omni-color-canvas: var(--omni-palette-light-canvas);
+  --omni-color-surface: var(--omni-palette-light-surface);
+  --omni-color-surface-raised: var(--omni-palette-light-surface-raised);
+  --omni-color-text: var(--omni-palette-light-text);
+  --omni-color-text-muted: var(--omni-palette-light-muted);
+  --omni-color-border: var(--omni-palette-light-border);
   --omni-color-action: var(--omni-palette-action);
   --omni-color-action-text: var(--omni-palette-white);
   --omni-color-success: var(--omni-palette-success);
   --omni-color-danger: var(--omni-palette-danger);
   --omni-color-danger-text: var(--omni-palette-white);
-  --omni-color-focus: var(--omni-palette-focus-dark);
+  --omni-color-focus: var(--omni-palette-focus-light);
   --omni-color-caption-canvas: var(--omni-palette-caption-canvas);
   --omni-color-caption-text: var(--omni-palette-caption-text);
-  --omni-color-caption-border: var(--omni-palette-dark-border);
+  --omni-color-caption-border: var(--omni-material-metal);
+
+  --omni-age-fresh-edge: var(--omni-material-metal-dark);
+  --omni-age-light-edge: var(--omni-material-metal);
+  --omni-age-medium-edge: var(--omni-ink-faded);
+  --omni-age-heavy-edge: var(--omni-ink-pencil);
 
   --omni-font-family-sans: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --omni-font-family-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -62,28 +93,36 @@
   --omni-space-5: 1.25rem;
   --omni-space-6: 1.5rem;
   --omni-space-8: 2rem;
-  --omni-radius-sm: 0.375rem;
-  --omni-radius-md: 0.5rem;
+  --omni-radius-sm: 0.1875rem;
+  --omni-radius-md: 0.3125rem;
   --omni-touch-target-min: 2.75rem;
   --omni-focus-ring-width: 0.1875rem;
   --omni-focus-ring-offset: 0.125rem;
-  --omni-motion-fast: 120ms;
-  --omni-motion-standard: 200ms;
+
+  --omni-motion-instant: 80ms;
+  --omni-motion-fast: 180ms;
+  --omni-motion-standard: 280ms;
+  --omni-motion-slow: 400ms;
+  --omni-motion-deliberate: 500ms;
+  --omni-motion-age: 1000ms;
+  --omni-ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --omni-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --omni-ease-decelerate: cubic-bezier(0.3, 0, 0.2, 1);
+  --omni-ease-stamp: cubic-bezier(0.34, 1.3, 0.64, 1);
 
   font-family: var(--omni-font-family-sans);
 }
 /* TOKEN_SOURCE_END */
 
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: dark) {
   :root {
-    --omni-color-canvas: var(--omni-palette-light-canvas);
-    --omni-color-surface: var(--omni-palette-light-surface);
-    --omni-color-surface-raised: var(--omni-palette-light-surface-raised);
-    --omni-color-text: var(--omni-palette-light-text);
-    --omni-color-text-muted: var(--omni-palette-light-muted);
-    --omni-color-border: var(--omni-palette-light-border);
-    --omni-color-focus: var(--omni-palette-focus-light);
-    --omni-color-caption-border: var(--omni-palette-light-border);
+    --omni-color-canvas: var(--omni-palette-dark-canvas);
+    --omni-color-surface: var(--omni-palette-dark-surface);
+    --omni-color-surface-raised: var(--omni-palette-dark-surface-raised);
+    --omni-color-text: var(--omni-palette-dark-text);
+    --omni-color-text-muted: var(--omni-palette-dark-muted);
+    --omni-color-border: var(--omni-palette-dark-border);
+    --omni-color-focus: var(--omni-palette-focus-dark);
   }
 }
 
@@ -110,9 +149,275 @@ textarea {
   font: inherit;
 }
 
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 :focus-visible {
   outline: var(--omni-focus-ring-width) solid var(--omni-color-focus);
   outline-offset: var(--omni-focus-ring-offset);
+}
+
+[data-material="paper"] {
+  background: var(--omni-material-paper);
+  color: var(--omni-ink-primary);
+}
+
+[data-material="cardstock"] {
+  background: var(--omni-material-cardstock);
+  color: var(--omni-ink-primary);
+}
+
+[data-material="kraft"] {
+  background: var(--omni-material-kraft);
+  color: var(--omni-ink-primary);
+}
+
+[data-material="acetate"] {
+  background: var(--omni-material-acetate-clear);
+}
+
+[data-age] {
+  transition: border-color var(--omni-motion-age) var(--omni-ease-standard), background-color var(--omni-motion-age) var(--omni-ease-standard);
+}
+
+[data-age="fresh"] { border-color: var(--omni-age-fresh-edge); }
+[data-age="light"] { border-color: var(--omni-age-light-edge); }
+[data-age="medium"] { border-color: var(--omni-age-medium-edge); }
+[data-age="heavy"] { border-color: var(--omni-age-heavy-edge); background: var(--omni-material-aged); }
+
+.omni-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.omni-shell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--omni-space-4);
+  padding: var(--omni-space-3) var(--omni-space-6);
+  border-bottom: 2px solid var(--omni-material-metal-dark);
+  box-shadow: 0 2px 5px rgba(28, 25, 21, 0.2);
+}
+
+.omni-shell-brand {
+  color: var(--omni-ink-primary);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  text-decoration: none;
+}
+
+.omni-shell-user {
+  display: flex;
+  align-items: center;
+  gap: var(--omni-space-4);
+}
+
+.omni-shell-user-label {
+  color: var(--omni-ink-pencil);
+  font-size: 0.9rem;
+}
+
+.omni-shell-main {
+  flex: 1;
+  width: min(76rem, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: var(--omni-space-8) 0;
+}
+
+.omni-shell-footer {
+  padding: var(--omni-space-3) var(--omni-space-6);
+  border-top: 1px solid var(--omni-material-metal);
+  font-size: 0.8rem;
+}
+
+.omni-secondary-action,
+.atlas-primary-action {
+  padding: var(--omni-space-2) var(--omni-space-4);
+  border-radius: var(--omni-radius-sm);
+  font-weight: var(--omni-font-weight-semibold);
+  transition: transform var(--omni-motion-fast) var(--omni-ease-standard), box-shadow var(--omni-motion-fast) var(--omni-ease-standard);
+}
+
+.omni-secondary-action {
+  border: 1px solid var(--omni-material-metal-dark);
+  background: var(--omni-material-paper);
+  color: var(--omni-ink-primary);
+}
+
+.atlas-primary-action {
+  border: 2px solid var(--omni-material-metal-dark);
+  background: var(--omni-ink-stamp-blue);
+  color: var(--omni-palette-white);
+  box-shadow: 0 2px 0 var(--omni-material-metal-dark);
+}
+
+.omni-secondary-action:hover,
+.atlas-primary-action:hover {
+  transform: translateY(-1px);
+}
+
+.omni-loading-slip {
+  width: min(28rem, calc(100% - 2rem));
+  margin: 3rem auto;
+  padding: var(--omni-space-6);
+  border: 1px solid var(--omni-material-metal);
+  text-align: center;
+}
+
+.atlas-workbench {
+  color: var(--omni-color-text);
+}
+
+.atlas-workbench-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--omni-space-6);
+  margin-bottom: var(--omni-space-6);
+}
+
+.atlas-workbench-header h1 {
+  margin: 0;
+  color: var(--omni-material-paper);
+  font-size: clamp(1.75rem, 4vw, 2.6rem);
+  line-height: 1.05;
+}
+
+.atlas-kicker {
+  margin: 0 0 var(--omni-space-2);
+  color: var(--omni-material-recycled);
+  font-family: var(--omni-font-family-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.atlas-workbench-summary {
+  max-width: 48rem;
+  margin: var(--omni-space-2) 0 0;
+  color: var(--omni-material-recycled);
+}
+
+.atlas-folder-stack {
+  display: grid;
+  gap: var(--omni-space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.atlas-folder {
+  position: relative;
+  padding: var(--omni-space-6);
+  border: 1px solid var(--omni-material-metal-dark);
+  border-radius: var(--omni-radius-sm);
+  box-shadow: 0 5px 10px rgba(28, 25, 21, 0.2);
+  transition: transform var(--omni-motion-fast) var(--omni-ease-standard), box-shadow var(--omni-motion-fast) var(--omni-ease-standard);
+}
+
+.atlas-folder:hover,
+.atlas-folder:focus-within {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 14px rgba(28, 25, 21, 0.24);
+}
+
+.atlas-folder-tab {
+  position: absolute;
+  top: -1.15rem;
+  left: var(--omni-space-5);
+  padding: var(--omni-space-1) var(--omni-space-3);
+  border: 1px solid var(--omni-material-metal-dark);
+  border-bottom: 0;
+  background: var(--omni-material-kraft);
+  color: var(--omni-ink-primary);
+  font-family: var(--omni-font-family-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.atlas-folder-title {
+  color: var(--omni-ink-primary);
+  font-size: 1.15rem;
+  font-weight: var(--omni-font-weight-semibold);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.atlas-folder-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--omni-space-5);
+  margin: var(--omni-space-4) 0 0;
+}
+
+.atlas-folder-metadata div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.atlas-folder-metadata dt {
+  color: var(--omni-ink-faded);
+  font-family: var(--omni-font-family-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.atlas-folder-metadata dd {
+  margin: 0;
+  color: var(--omni-ink-annotation);
+  font-family: var(--omni-font-family-mono);
+  font-size: 0.85rem;
+}
+
+.atlas-provenance-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--omni-space-3);
+  margin-top: var(--omni-space-5);
+  padding-top: var(--omni-space-3);
+  border-top: 1px dashed var(--omni-material-metal);
+  color: var(--omni-ink-pencil);
+  font-size: 0.8rem;
+}
+
+.atlas-stamp {
+  display: inline-block;
+  padding: 0.18rem 0.35rem;
+  border: 2px solid var(--omni-ink-stamp-red);
+  color: var(--omni-ink-stamp-red);
+  font-family: var(--omni-font-family-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  transform: rotate(-1deg);
+}
+
+.atlas-empty-folder,
+.atlas-alert {
+  padding: var(--omni-space-6);
+  border: 1px solid var(--omni-material-metal-dark);
+  box-shadow: 0 4px 8px rgba(28, 25, 21, 0.18);
+}
+
+.atlas-empty-title {
+  margin-top: 0;
+  font-weight: var(--omni-font-weight-semibold);
+}
+
+.atlas-alert {
+  margin-bottom: var(--omni-space-5);
+  border-left: 0.35rem solid var(--omni-ink-stamp-red);
+  color: var(--omni-ink-stamp-red);
 }
 
 .omni-call-shell {
@@ -161,7 +466,6 @@ textarea {
 }
 
 .omni-end-call:disabled {
-  cursor: not-allowed;
   opacity: 0.65;
 }
 
@@ -256,8 +560,22 @@ textarea {
 }
 
 @media (max-width: 44rem) {
+  .omni-shell-header,
+  .omni-shell-user,
+  .atlas-workbench-header,
   .omni-call-header {
     align-items: stretch;
+    flex-direction: column;
+  }
+
+  .omni-shell-main {
+    width: min(100% - 1rem, 76rem);
+    padding-top: var(--omni-space-6);
+  }
+
+  .atlas-folder-metadata,
+  .atlas-provenance-strip {
+    align-items: flex-start;
     flex-direction: column;
   }
 
@@ -277,14 +595,45 @@ textarea {
   }
 }
 
+@media print {
+  body {
+    background: var(--omni-palette-white);
+    color: var(--omni-palette-black);
+  }
+
+  .omni-shell-header,
+  .omni-shell-footer,
+  .atlas-primary-action {
+    display: none;
+  }
+
+  .omni-shell-main {
+    width: 100%;
+    padding: 0;
+  }
+
+  .atlas-folder,
+  .atlas-empty-folder,
+  .atlas-alert {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+}
+
 @media (forced-colors: active) {
   :root {
     --omni-color-focus: Highlight;
   }
 
+  [data-material],
+  .atlas-folder,
+  .atlas-folder-tab,
+  .atlas-stamp,
   .omni-caption-panel,
-  .omni-end-call {
-    border: 2px solid CanvasText;
+  .omni-end-call,
+  .atlas-primary-action,
+  .omni-secondary-action {
+    border-color: CanvasText;
     background: Canvas;
     color: CanvasText;
     forced-color-adjust: auto;
