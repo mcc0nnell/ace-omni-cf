@@ -1,6 +1,7 @@
 {
   "id": "PG-001",
   "title": "Runtime Independence",
+  "mode": "conformance",
   "status": "proven",
   "objective": "Demonstrate that the same Omni Core experiment behavior produces equivalent semantic traces across Cloudflare Omni, JAIN SLEE Omni, and Elixip Omni.",
   "executor": {
