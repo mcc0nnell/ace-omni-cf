@@ -10,3 +10,60 @@ McLean, VA  22102-7539, (703) 983-6000.
                         ©2024 The MITRE Corporation.
 
 Approved for Public Release; Distribution Unlimited 24-0463
+
+
+REPOSITORY LICENSING AND THIRD-PARTY BOUNDARIES
+===============================================
+
+Original ACE Omni material
+--------------------------
+
+The notice above is preserved verbatim from the original publicly released
+ACE Omni repository. It applies to the original ACE Omni material according to
+its own terms. Nothing in this repository's later provenance or third-party
+notices is intended to expand, replace, or reinterpret those terms.
+
+Elixip / ElixiPG integration
+----------------------------
+
+This repository integrates with Elixip as an external execution runtime for the
+ElixiPG proving ground. Elixip source code is not vendored into this repository;
+CI and local tooling use an external checkout pinned by the integration.
+
+Elixip is distributed by Emmanuel Buu / La Tribuu under the Business Source
+License 1.1 (BSL 1.1), with license parameters and an Additional Use Grant
+specified by the upstream project. At the integration pin used by ACE Omni:
+
+- Licensor: Emmanuel Buu / La Tribuu.
+- Licensed Work: Elixip and the tools identified by the upstream license.
+- Change License: GNU General Public License version 3.0 or later
+  (GPL-3.0-or-later).
+- Change Date: two years after the publication date of each released version.
+- The Additional Use Grant permits production use subject to explicit Elixip
+  credit and contribution-back requirements for fixes and improvements made to
+  the Licensed Work itself.
+- The Additional Use Grant does not authorize a paid product or service that
+  competes directly with Elixip in the reserved categories identified by the
+  upstream license, including SBC, SIP proxy/B2BUA, and SIP/RTP/WebRTC testing
+  products; those uses require separate commercial licensing.
+- Elixip's upstream license expressly states that `.exs` scripts and scenarios
+  executed by the Elixip scenario engine are not derivative works of Elixip and
+  may be licensed independently by their authors.
+
+ACE Omni's ElixiPG integration relies on that scenario boundary: the repository
+contains ACE Omni-authored scenario/conformance code and points at an external
+Elixip runtime rather than incorporating Elixip implementation source.
+
+Required attribution for the external runtime:
+
+  Elixip — SIP/RTP/WebRTC tooling by Emmanuel Buu / La Tribuu
+  https://github.com/neutrino38/elixip
+
+The complete Elixip license, not this summary, controls use of Elixip. The
+integration is currently pinned to commit:
+
+  fd0f7bf703dddfcefcf2cb28205776a5a402e192
+
+Upstream license at that pin:
+
+  https://github.com/neutrino38/elixip/blob/fd0f7bf703dddfcefcf2cb28205776a5a402e192/LICENSE.md
