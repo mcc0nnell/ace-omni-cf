@@ -184,7 +184,7 @@ It must not become `proven` until a real Elixip SIP scenario emits normalized Om
 
 ### PG-003 — Discovery Under Uncertainty — `PROVEN`
 
-![PG-003 case file: the Omni Proving Grounds scenario folder for Discovery Under Uncertainty, showing the 16 → 8 → 4 → 2 → 1 hypothesis funnel, the four discovered access-control rules with their evidence IDs PG-003-E-001 through PG-003-E-004, the experiment → observation → hypothesis → next experiment → evidence-backed assertion discovery loop, and a passing independent verification slip for four experiments](docs/images/pg-003-case-file.png)
+![PG-003 case file: the Omni Proving Grounds scenario folder for Discovery Under Uncertainty, showing the 16 → 8 → 4 → 2 → 1 hypothesis funnel, the four discovered access-control rules with their evidence IDs PG-003-E-001 through PG-003-E-004, the experiment → observation → hypothesis → next experiment → evidence-backed assertion discovery loop, and a passing independent verification slip for four experiments](docs/images/pg-003-case-file.jpg)
 
 PG-003 is the first proven `discovery` trial. It builds a synthetic authorization world with four hidden Boolean rules that are never passed to the discovery routine. The routine receives only eight manifest-declared experiments, one fixed command boundary (`synthetic-authz-world` / `sut.authz.probe` / `PROBE_AUTHZ`), an execution function, and an eight-experiment budget.
 
