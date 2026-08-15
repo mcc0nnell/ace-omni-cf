@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
+  projectCounterfactualOmission,
+  traceAssurance,
+  type AssuranceExplorationMode,
+} from "../lib/explorable-assurance";
+import {
   SC7_WORKSPACE_EVENTS,
   composeOmniWorkspace,
   type OmniProjection,
+  type OmniWorkspaceEdge,
   type OmniWorkspaceEvent,
   type OmniWorkspaceNode,
 } from "../lib/omni-workspace";
 import "../styles/omni-workspace.css";
+import "../styles/omni-exploration.css";
 
 const PROJECTIONS: Array<{ id: OmniProjection; key: string; label: string }> = [
   { id: "mission", key: "F1", label: "Mission" },
@@ -16,6 +23,9 @@ const PROJECTIONS: Array<{ id: OmniProjection; key: string; label: string }> = [
   { id: "investigation", key: "F5", label: "Investigation" },
   { id: "replay", key: "F6", label: "Replay" },
 ];
+
+type NodeExplorationState = "normal" | "focused" | "related" | "omitted" | "affected" | "dimmed";
+type EdgeExplorationState = "normal" | "related" | "affected" | "dimmed";
 
 function eventSummary(event: OmniWorkspaceEvent): string {
   switch (event.type) {
@@ -39,10 +49,12 @@ function eventSummary(event: OmniWorkspaceEvent): string {
 function NodeCard({
   node,
   selected,
+  explorationState,
   onSelect,
 }: {
   node: OmniWorkspaceNode;
   selected: boolean;
+  explorationState: NodeExplorationState;
   onSelect: (id: string) => void;
 }) {
   const style = {
@@ -56,6 +68,7 @@ function NodeCard({
       className="omni-map-node"
       data-kind={node.kind}
       data-selected={selected ? "true" : "false"}
+      data-explore={explorationState}
       style={style}
       onClick={() => onSelect(node.id)}
       aria-pressed={selected}
@@ -68,10 +81,11 @@ function NodeCard({
   );
 }
 
-function Inspector({ node, shaded, pinned, onShade, onPin }: {
+function Inspector({ node, shaded, pinned, explorationMode, onShade, onPin }: {
   node: OmniWorkspaceNode | undefined;
   shaded: boolean;
   pinned: boolean;
+  explorationMode: AssuranceExplorationMode;
   onShade: () => void;
   onPin: () => void;
 }) {
@@ -98,6 +112,7 @@ function Inspector({ node, shaded, pinned, onShade, onPin }: {
               <div className="omni-inspector-status">
                 <span data-kind={node.kind}>{node.kind}</span>
                 {node.severity ? <span data-severity={node.severity}>{node.severity}</span> : null}
+                {explorationMode !== "authoritative" ? <span data-mode={explorationMode}>{explorationMode}</span> : null}
               </div>
               <h2>{node.label}</h2>
               <p>{node.detail ?? "Authoritative workspace object."}</p>
@@ -128,6 +143,7 @@ export default function OmniWorkspacePage() {
   const [selectedId, setSelectedId] = useState("contradiction:sc7-public-admin");
   const [inspectorShaded, setInspectorShaded] = useState(false);
   const [inspectorPinned, setInspectorPinned] = useState(false);
+  const [explorationMode, setExplorationMode] = useState<AssuranceExplorationMode>("authoritative");
 
   const workspace = useMemo(
     () => composeOmniWorkspace(SC7_WORKSPACE_EVENTS, revision, projection),
@@ -137,12 +153,53 @@ export default function OmniWorkspacePage() {
   const selectedNode = nodeById.get(selectedId) ?? workspace.nodes[0];
   const activeEvent = workspace.events.at(-1);
 
+  const trace = useMemo(
+    () => explorationMode === "trace" && selectedNode ? traceAssurance(workspace, selectedNode.id, "both") : undefined,
+    [explorationMode, selectedNode, workspace],
+  );
+  const counterfactual = useMemo(
+    () => explorationMode === "hypothetical" && selectedNode ? projectCounterfactualOmission(workspace, selectedNode.id) : undefined,
+    [explorationMode, selectedNode, workspace],
+  );
+  const traceNodeIds = useMemo(() => new Set(trace?.nodeIds ?? []), [trace]);
+  const traceEdgeIds = useMemo(() => new Set(trace?.edgeIds ?? []), [trace]);
+  const affectedNodeIds = useMemo(() => new Set(counterfactual?.affectedNodeIds ?? []), [counterfactual]);
+  const affectedEdgeIds = useMemo(() => new Set(counterfactual?.affectedEdgeIds ?? []), [counterfactual]);
+
+  function selectNode(id: string) {
+    setSelectedId(id);
+    setExplorationMode("authoritative");
+  }
+
+  function nodeExplorationState(node: OmniWorkspaceNode): NodeExplorationState {
+    if (explorationMode === "trace" && trace) {
+      if (node.id === trace.focusedNodeId) return "focused";
+      return traceNodeIds.has(node.id) ? "related" : "dimmed";
+    }
+    if (explorationMode === "hypothetical" && counterfactual) {
+      if (node.id === counterfactual.omittedNodeId) return "omitted";
+      return affectedNodeIds.has(node.id) ? "affected" : "dimmed";
+    }
+    return selectedNode?.id === node.id ? "focused" : "normal";
+  }
+
+  function edgeExplorationState(edge: OmniWorkspaceEdge): EdgeExplorationState {
+    if (explorationMode === "trace" && trace) {
+      return traceEdgeIds.has(edge.id) ? "related" : "dimmed";
+    }
+    if (explorationMode === "hypothetical" && counterfactual) {
+      return affectedEdgeIds.has(edge.id) ? "affected" : "dimmed";
+    }
+    return "normal";
+  }
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const projectionIndex = PROJECTIONS.findIndex((item) => item.key === event.key);
       if (projectionIndex >= 0) {
         event.preventDefault();
         setProjection(PROJECTIONS[projectionIndex].id);
+        setExplorationMode("authoritative");
         return;
       }
       if (event.key === "ArrowLeft" && projection === "replay") {
@@ -156,6 +213,12 @@ export default function OmniWorkspacePage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [projection]);
 
+  const explorationMessage = trace
+    ? `TRACE · ${trace.nodeIds.length} related objects · authoritative history unchanged`
+    : counterfactual
+      ? `HYPOTHETICAL · omit ${counterfactual.omittedNodeId} · ${counterfactual.affectedNodeIds.length} dependent objects affected · authoritative history unchanged`
+      : undefined;
+
   return (
     <section className="omni-workspace-shell" aria-label="ACE Omni spatial workspace prototype">
       <header className="omni-workspace-masthead">
@@ -166,7 +229,7 @@ export default function OmniWorkspacePage() {
         </div>
         <div className="omni-mission-status" role="status">
           <span className="omni-live-dot" aria-hidden="true" />
-          <strong>{workspace.revision === SC7_WORKSPACE_EVENTS.length ? "FINDING OPEN" : "REPLAYING"}</strong>
+          <strong>{explorationMode === "hypothetical" ? "HYPOTHETICAL VIEW" : workspace.revision === SC7_WORKSPACE_EVENTS.length ? "FINDING OPEN" : "REPLAYING"}</strong>
           <small>{workspace.nodes.length} objects · {workspace.edges.length} relations</small>
         </div>
       </header>
@@ -177,7 +240,7 @@ export default function OmniWorkspacePage() {
             key={item.id}
             type="button"
             data-active={projection === item.id ? "true" : "false"}
-            onClick={() => setProjection(item.id)}
+            onClick={() => { setProjection(item.id); setExplorationMode("authoritative"); }}
             aria-pressed={projection === item.id}
           >
             <kbd>{item.key}</kbd>
@@ -189,8 +252,40 @@ export default function OmniWorkspacePage() {
       <div className="omni-command-strip">
         <span>omni&gt;</span>
         <strong>assess authorization readiness --focus SC-7</strong>
+        <div className="omni-exploration-controls" role="toolbar" aria-label="Assurance exploration">
+          <button
+            type="button"
+            disabled={!selectedNode}
+            aria-pressed={explorationMode === "trace"}
+            onClick={() => setExplorationMode("trace")}
+          >
+            TRACE
+          </button>
+          <button
+            type="button"
+            disabled={!selectedNode}
+            aria-pressed={explorationMode === "hypothetical"}
+            onClick={() => setExplorationMode("hypothetical")}
+          >
+            WHAT IF: OMIT
+          </button>
+          <button
+            type="button"
+            disabled={explorationMode === "authoritative"}
+            onClick={() => setExplorationMode("authoritative")}
+          >
+            RESET
+          </button>
+        </div>
         <small>{activeEvent ? `event #${activeEvent.sequence} · ${activeEvent.type}` : "no events"}</small>
       </div>
+
+      {explorationMessage ? (
+        <div className="omni-exploration-banner" data-mode={explorationMode} role="status" aria-live="polite">
+          <strong>{explorationMessage}</strong>
+          <span>This projection cannot mutate evidence, events, findings, or authorization state.</span>
+        </div>
+      ) : null}
 
       <div className="omni-workspace-grid">
         <aside className="omni-task-rail">
@@ -204,7 +299,7 @@ export default function OmniWorkspacePage() {
                 type="button"
                 data-kind={node.kind}
                 data-active={selectedNode?.id === node.id ? "true" : "false"}
-                onClick={() => setSelectedId(node.id)}
+                onClick={() => selectNode(node.id)}
               >
                 <span>{node.kind}</span>
                 <strong>{node.label}</strong>
@@ -246,6 +341,7 @@ export default function OmniWorkspacePage() {
                     x2={to.position.x}
                     y2={to.position.y}
                     data-kind={edge.kind}
+                    data-explore={edgeExplorationState(edge)}
                     markerEnd="url(#omni-arrow)"
                   />
                 );
@@ -256,7 +352,8 @@ export default function OmniWorkspacePage() {
                 key={node.id}
                 node={node}
                 selected={selectedNode?.id === node.id}
-                onSelect={setSelectedId}
+                explorationState={nodeExplorationState(node)}
+                onSelect={selectNode}
               />
             ))}
           </div>
@@ -266,6 +363,7 @@ export default function OmniWorkspacePage() {
           node={selectedNode}
           shaded={inspectorShaded}
           pinned={inspectorPinned}
+          explorationMode={explorationMode}
           onShade={() => setInspectorShaded((value) => !value)}
           onPin={() => setInspectorPinned((value) => !value)}
         />
@@ -292,7 +390,7 @@ export default function OmniWorkspacePage() {
             <div><span>REPLAY</span><strong>DETERMINISTIC EVENT SCRUB</strong></div>
           </header>
           <div className="omni-replay-controls">
-            <button type="button" onClick={() => setRevision((current) => Math.max(1, current - 1))} aria-label="Previous event">◀</button>
+            <button type="button" onClick={() => { setExplorationMode("authoritative"); setRevision((current) => Math.max(1, current - 1)); }} aria-label="Previous event">◀</button>
             <label>
               <span>Revision {revision} of {SC7_WORKSPACE_EVENTS.length}</span>
               <input
@@ -301,11 +399,11 @@ export default function OmniWorkspacePage() {
                 max={SC7_WORKSPACE_EVENTS.length}
                 step="1"
                 value={revision}
-                onChange={(event) => setRevision(Number(event.target.value))}
+                onChange={(event) => { setExplorationMode("authoritative"); setRevision(Number(event.target.value)); }}
               />
             </label>
-            <button type="button" onClick={() => setRevision((current) => Math.min(SC7_WORKSPACE_EVENTS.length, current + 1))} aria-label="Next event">▶</button>
-            <button type="button" onClick={() => { setProjection("replay"); setRevision(SC7_WORKSPACE_EVENTS.length); }}>REPLAY MAP</button>
+            <button type="button" onClick={() => { setExplorationMode("authoritative"); setRevision((current) => Math.min(SC7_WORKSPACE_EVENTS.length, current + 1)); }} aria-label="Next event">▶</button>
+            <button type="button" onClick={() => { setExplorationMode("authoritative"); setProjection("replay"); setRevision(SC7_WORKSPACE_EVENTS.length); }}>REPLAY MAP</button>
           </div>
         </section>
       </div>
