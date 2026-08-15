@@ -1,41 +1,81 @@
-# ElixiPG — Elixip Proving Grounds
+# Omni Proving Grounds
 
-**ElixiPG** is the controlled proving-ground layer for exercising communications behavior through Elixip and evaluating the result with ACE Omni Core semantics and evidence.
+The **Omni Proving Grounds** catalog controlled experiments that exercise behavior through one or more execution grounds and evaluate the result with ACE Omni Core semantics and evidence.
 
-It is not a second test framework and it is not a fork of Elixip. Elixip owns communications execution. Omni owns experiment identity, normalized observations, evidence, and cross-runtime comparison. ElixiPG names and catalogs the controlled trials that connect those two roles.
+**ElixiPG** remains the first executable ground: Elixip owns communications execution while Omni owns experiment identity, normalized observations, evidence, and cross-runtime comparison. The proving-ground registry is broader than Elixip, however. A trial may target a communications runtime, a synthetic world, a cyber range, a system under test, or another explicitly governed environment.
 
 ```text
-                     ElixiPG
-             Elixip Proving Grounds
+                 Omni Proving Grounds
 
-                    Trial
-                      │
-                      ▼
-               Omni Core intent
-                      │
-                      ▼
-                   Elixip
-             SIP / media / FSM world
-                      │
-          events / observations / faults
-                      │
-                      ▼
-               Omni evidence plane
-                      │
-                      ▼
-             replay / comparison / verdict
+                         Trial
+                           │
+                           ▼
+                    Omni Core intent
+                           │
+                           ▼
+                 governed effect boundary
+                           │
+                           ▼
+              execution ground / world / SUT
+                           │
+                 events / observations / faults
+                           │
+                           ▼
+                   Omni evidence plane
+                           │
+                           ▼
+              replay / hypothesis / verdict
 ```
 
 ## Vocabulary
 
-- **Ground** — the executable communications environment under test.
+- **Ground** — the executable environment under test.
 - **Trial** — one named, controlled proving-ground experiment.
-- **Scenario** — the communications behavior exercised by the trial.
-- **Conditions** — deterministic network, media, accessibility, or runtime manipulations.
+- **Scenario** — the behavior exercised by the trial.
+- **Conditions** — deterministic network, media, accessibility, runtime, or world manipulations.
 - **Observer** — a source that reports facts about execution without becoming experiment authority.
 - **Evidence** — the preserved, runtime-independent record used to evaluate a trial.
 - **Replay** — reconstruction from pinned trial inputs and evidence.
-- **Verdict** — the result of evaluating declared trial assertions.
+- **Hypothesis** — a provisional model of hidden behavior formed during a discovery trial.
+- **Verdict** — the independently evaluated result of declared assertions or discovered claims.
+
+## Trial modes
+
+Every trial declares one of two modes.
+
+### Conformance
+
+The expected behavior and assertions are known in advance. The trial asks whether the system behaves as specified.
+
+Examples: runtime semantic equivalence, SIP lifecycle behavior, terminal-state isolation, deterministic replay.
+
+### Discovery
+
+The relevant environment rules are intentionally withheld from the agent. The trial asks whether the agent can infer and demonstrate valid invariants through bounded experimentation.
+
+A discovery trial must keep the oracle hidden, restrict actions to an explicit manifest, preserve hypothesis revisions, impose an experiment budget, require replayable evidence for claims, and use verdict logic independent of the agent's self-assessment.
+
+The core loop is:
+
+```text
+unknown behavior
+      ↓
+bounded experiment
+      ↓
+authorized Omni action
+      ↓
+observation
+      ↓
+hypothesis
+      ↓
+next experiment
+      ↓
+evidence-backed invariant
+      ↓
+independent verdict
+```
+
+See [`docs/DISCOVERY-TRIALS.md`](../docs/DISCOVERY-TRIALS.md).
 
 ## Trial states
 
@@ -46,30 +86,48 @@ Trial manifests under `proving-grounds/trials/` use one of four states:
 - `proven` — CI must be able to locate and validate the trial's declared evidence.
 - `regressed` — a previously proven trial has a known semantic divergence.
 
-A trial is never `proven` merely because a document says so. `npm run test:elixipg` validates the registry and, for proven trials, verifies the declared runtime evidence produced by the conformance pipeline.
+A trial is never `proven` merely because a document says so. `npm run test:elixipg` retains its historical command name but now validates the broader Omni Proving Grounds registry. For proven conformance trials it verifies declared cross-runtime evidence; for proven discovery trials it first executes the discovery proof and then requires a generated discovery record plus an independent verdict artifact.
 
-## Initial trials
+## Foundational trials
 
 ### PG-001 — Runtime Independence
 
+Mode: `conformance`
+
 Demonstrate that the same Omni Core behavior produces equivalent semantic traces across Cloudflare Omni, JAIN SLEE Omni, and Elixip Omni.
 
-This is the first proven ElixiPG trial. It uses the five canonical conformance fixtures and the generated traces under `conformance/generated/`.
+This is the first proven trial. It uses the five canonical conformance fixtures and the generated traces under `conformance/generated/`.
 
 ### PG-002 — SIP Establishment
+
+Mode: `conformance`
 
 Replace abstract `START_ACTIVITY` in the Elixip conformance scenario with a real SIP INVITE/dialog lifecycle. Normalize dialog establishment, failure, teardown, and relevant media observations back into Omni Core events and evidence.
 
 PG-002 is intentionally `planned` until that real SIP path exists.
 
+### PG-003 — Discovery Under Uncertainty
+
+Mode: `discovery`
+
+Status: `proven`
+
+Evaluate whether a governed agent can infer and demonstrate valid hidden system invariants through bounded experiments without receiving arbitrary execution authority.
+
+PG-003 uses a synthetic authorization world with four rule values hidden from the discovery routine. The agent begins with all 16 possible rule combinations and may choose only from eight manifest-declared experiments using one fixed command boundary. Information-gain selection reduces the hypothesis space deterministically from **16 → 8 → 4 → 2 → 1** in four experiments.
+
+An independent deterministic grader then requires the discovered rule-set digest to equal the hidden oracle digest and separately checks command-boundary preservation, evidence binding for every final claim, and budget compliance. The generated discovery record and verdict live under `conformance/generated/discovery/`.
+
 ## Architectural rule
 
-ElixiPG must preserve the authority boundary:
+The proving grounds must preserve the authority boundary:
 
 ```text
-Elixip makes communications happen.
-Omni records and evaluates what happened.
-ElixiPG defines the proving-ground trial.
+The ground makes behavior happen.
+Omni controls experiment identity and evidence.
+The trial constrains what may be tested.
+The agent may choose among authorized experiments.
+The verdict is independent of the agent.
 ```
 
-A scenario may execute SIP, RTP, WebRTC, timers, faults, or media behavior. It may not silently redefine experiment identity, canonical trial inputs, evidence identity, or the semantic verdict.
+A scenario may execute SIP, RTP, WebRTC, timers, faults, media behavior, synthetic-world changes, or other explicitly authorized effects. It may not silently redefine experiment identity, canonical inputs, adapter authority, evidence identity, hidden oracle state, or the semantic verdict.
