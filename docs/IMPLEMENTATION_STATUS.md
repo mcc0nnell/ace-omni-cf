@@ -38,7 +38,7 @@ Status is evidence-based: “tested” means the path has executed in automation
 - Version 1 supports exactly caller and callee. Communications-assistant/VRS multi-party topology is deferred.
 - Recruitment, consent authoring, participant compensation, and study randomization workflows are not implemented.
 - Cloudflare Realtime TURN credentials and an SFU path are not implemented.
-- Production resources, domains, secrets, retention rules, alerts, and deployment have not been created.
+- The canonical `iad.mcc0nnell.org` Custom Domain is declared in Wrangler, but production resources, secrets, retention rules, alerts, and deployment have not been created.
 - Login rate limiting, account recovery, MFA/SSO, and institutional identity integration remain recommended production work.
 - Full assistive-technology and real-device accessibility matrices remain future validation; semantic labels, focus visibility, status regions, and keyboard controls are present.
 

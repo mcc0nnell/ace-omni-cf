@@ -55,9 +55,16 @@
   "env": {
     "production": {
       "name": "ace-omni-production",
+      "workers_dev": true,
+      "routes": [
+        {
+          "pattern": "iad.mcc0nnell.org",
+          "custom_domain": true
+        }
+      ],
       "vars": {
         "ENVIRONMENT": "production",
-        "ALLOWED_ORIGINS": "https://omni.example.invalid"
+        "ALLOWED_ORIGINS": "https://iad.mcc0nnell.org"
       },
       "secrets": {
         "required": ["SESSION_SECRET", "TOKEN_SIGNING_SECRET", "SCHEDULE_SIGNING_SECRET"]

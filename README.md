@@ -335,6 +335,17 @@ npm run dev:worker
 
 Open `http://127.0.0.1:8787`. For Vite hot reload, run `npm run dev:web` and open `http://127.0.0.1:5173`.
 
+## Deployment hostnames
+
+ACE Omni's canonical public deployment is [https://iad.mcc0nnell.org](https://iad.mcc0nnell.org). `IAD` is the artifact callsign; the product and its internal Worker/resource names remain ACE Omni.
+
+Deployed artifacts use the following namespace convention:
+
+- `<airport-code>.mcc0nnell.org` is the canonical public hostname;
+- `workers.dev` remains available for temporary engineering, previews, debugging, and development access.
+
+The production Wrangler environment attaches `iad.mcc0nnell.org` as a Cloudflare Custom Domain while retaining `workers_dev`. Cloudflare manages the Custom Domain DNS record and certificate, so do not create a separate CNAME or other DNS record for `iad.mcc0nnell.org`.
+
 ## Validation
 
 Cloudflare/reference-runtime gates:

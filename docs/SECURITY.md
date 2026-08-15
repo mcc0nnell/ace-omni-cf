@@ -32,7 +32,7 @@ Production startup rejects missing, short, or recognizable development placehold
 
 ## Network policy
 
-- Credentialed CORS accepts exact configured origins only.
+- Credentialed CORS accepts exact configured origins or the request's exact same origin. This keeps the canonical Custom Domain and retained `workers.dev` endpoint usable without trusting unrelated origins.
 - Cross-site unsafe Fetch Metadata requests are rejected.
 - CSP, frame denial, MIME sniffing denial, no-referrer, no-store, opener isolation, and media permission policies are emitted on Worker responses.
 - WebSocket signaling can target only a currently connected participant in the same per-call object.
@@ -54,4 +54,4 @@ Production startup rejects missing, short, or recognizable development placehold
 
 ## Production gate
 
-Before deployment, provision unique D1/R2/Durable Object resources, replace the invalid production origin/database placeholders, add secrets through Cloudflare, configure R2 lifecycle rules, select a TURN strategy, establish monitoring/alerts, and run the clean-checkout suite against the release revision. Do not use the local synthetic seed against remote resources.
+Before deployment, provision unique D1/R2/Durable Object resources, replace the invalid production database placeholder, add secrets through Cloudflare, configure R2 lifecycle rules, select a TURN strategy, establish monitoring/alerts, and run the clean-checkout suite against the release revision. Do not use the local synthetic seed against remote resources.

@@ -182,6 +182,17 @@ describe("research API security boundaries", () => {
     }));
     expect(crossOrigin.status).toBe(403);
     expect(crossOrigin.headers.get("Access-Control-Allow-Origin")).toBeNull();
+
+    for (const deploymentOrigin of [
+      "https://iad.mcc0nnell.org",
+      "https://ace-omni-production.example.workers.dev",
+    ]) {
+      const sameOrigin = await exports.default.fetch(new Request(`${deploymentOrigin}/api/health`, {
+        headers: { Origin: deploymentOrigin },
+      }));
+      expect(sameOrigin.status).toBe(200);
+      expect(sameOrigin.headers.get("Access-Control-Allow-Origin")).toBe(deploymentOrigin);
+    }
   });
 
   it("enforces experiment and call ownership and immutable versions", async () => {
