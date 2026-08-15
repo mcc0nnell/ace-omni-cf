@@ -86,7 +86,7 @@ Trial manifests under `proving-grounds/trials/` use one of four states:
 - `proven` — CI must be able to locate and validate the trial's declared evidence.
 - `regressed` — a previously proven trial has a known semantic divergence.
 
-A trial is never `proven` merely because a document says so. `npm run test:elixipg` retains its historical command name but now validates the broader Omni Proving Grounds registry. For proven conformance trials it verifies declared cross-runtime evidence; for proven discovery trials it requires a generated discovery record plus an independent verdict artifact.
+A trial is never `proven` merely because a document says so. `npm run test:elixipg` retains its historical command name but now validates the broader Omni Proving Grounds registry. For proven conformance trials it verifies declared cross-runtime evidence; for proven discovery trials it first executes the discovery proof and then requires a generated discovery record plus an independent verdict artifact.
 
 ## Foundational trials
 
@@ -110,9 +110,13 @@ PG-002 is intentionally `planned` until that real SIP path exists.
 
 Mode: `discovery`
 
+Status: `proven`
+
 Evaluate whether a governed agent can infer and demonstrate valid hidden system invariants through bounded experiments without receiving arbitrary execution authority.
 
-PG-003 adopts the architectural pattern demonstrated by DiG-bench: the agent must experiment against an environment whose rules are not disclosed, preserve a hypothesis ledger, and support every final claim with replayable evidence. The benchmark supplies the discovery pattern; Omni supplies the authority boundary and evidence model.
+PG-003 uses a synthetic authorization world with four rule values hidden from the discovery routine. The agent begins with all 16 possible rule combinations and may choose only from eight manifest-declared experiments using one fixed command boundary. Information-gain selection reduces the hypothesis space deterministically from **16 → 8 → 4 → 2 → 1** in four experiments.
+
+An independent deterministic grader then requires the discovered rule-set digest to equal the hidden oracle digest and separately checks command-boundary preservation, evidence binding for every final claim, and budget compliance. The generated discovery record and verdict live under `conformance/generated/discovery/`.
 
 ## Architectural rule
 
