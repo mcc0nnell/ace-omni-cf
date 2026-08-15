@@ -267,8 +267,9 @@ function cookieOptions(environment: string, maxAge: number) {
   };
 }
 
-function allowedOrigins(environment: WorkerEnv): Set<string> {
-  return new Set(environment.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean));
+function allowedOrigins(environment: WorkerEnv, requestUrl: string): Set<string> {
+  const configured = environment.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean);
+  return new Set([...configured, new URL(requestUrl).origin]);
 }
 
 function bearerToken(request: Request): string | null {
@@ -468,7 +469,7 @@ const securityMiddleware: MiddlewareHandler<AppBindings> = async (context, next)
   );
 
   const origin = context.req.header("Origin");
-  const allowed = allowedOrigins(context.env);
+  const allowed = allowedOrigins(context.env, context.req.url);
   if (origin && !allowed.has(origin)) {
     return context.json({ error: "Origin is not allowed" }, 403);
   }
