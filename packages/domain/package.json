@@ -7,7 +7,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./evidence-rendering": "./src/evidence-rendering.ts"
+    "./evidence-rendering": "./src/evidence-rendering-public.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
