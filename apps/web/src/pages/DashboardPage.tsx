@@ -102,12 +102,13 @@ export default function DashboardPage({ user }: { user: User }) {
   }
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+    <section className="atlas-workbench" aria-labelledby="experiment-folders-heading">
+      <div className="atlas-workbench-header">
         <div>
-          <h1 style={{ margin: 0 }}>Experiments</h1>
-          <p style={{ color: "var(--omni-color-text-muted)", marginBottom: 0 }}>
-            Signed in as {user.displayName}. All runs pin an immutable configuration version.
+          <p className="atlas-kicker">Scenario archive</p>
+          <h1 id="experiment-folders-heading">Experiment folders</h1>
+          <p className="atlas-workbench-summary">
+            Signed in as {user.displayName}. Each folder pins an immutable configuration version and preserves its evidence trail.
           </p>
         </div>
         <button
@@ -115,30 +116,40 @@ export default function DashboardPage({ user }: { user: User }) {
           data-testid="create-experiment"
           onClick={createSample}
           disabled={creating}
-          style={{ padding: "0.55rem 1rem", borderRadius: 6, border: "none", background: "var(--omni-color-action)", color: "var(--omni-color-action-text)", fontWeight: 600 }}
+          className="atlas-primary-action"
         >
           {creating ? "Creating…" : "Create synthetic experiment"}
         </button>
       </div>
 
-      {error && <div role="alert" style={{ marginBottom: "1rem", color: "var(--omni-color-danger)" }}>{error}</div>}
+      {error && <div role="alert" className="atlas-alert" data-material="paper">{error}</div>}
 
       {experiments.length === 0 ? (
-        <p style={{ color: "var(--omni-color-text-muted)" }}>No experiments yet.</p>
+        <div className="atlas-empty-folder" data-material="paper" data-age="fresh">
+          <p className="atlas-empty-title">No experiment folders yet.</p>
+          <p>Create a synthetic experiment to establish the first immutable configuration and evidence record.</p>
+        </div>
       ) : (
-        <ul data-testid="experiment-list" style={{ listStyle: "none", padding: 0, display: "grid", gap: "0.75rem" }}>
+        <ul data-testid="experiment-list" className="atlas-folder-stack">
           {experiments.map((experiment) => (
-            <li key={experiment.id} style={{ padding: "1rem 1.25rem", background: "var(--omni-color-surface)", border: "1px solid var(--omni-color-border)", borderRadius: 8 }}>
-              <a href={`/experiments/${experiment.id}`} style={{ textDecoration: "none", color: "inherit", fontWeight: 600 }}>
+            <li key={experiment.id} className="atlas-folder" data-material="cardstock" data-age="fresh">
+              <div className="atlas-folder-tab" aria-hidden="true">Scenario folder</div>
+              <a href={`/experiments/${experiment.id}`} className="atlas-folder-title">
                 {experiment.name}
               </a>
-              <div style={{ marginTop: 4, fontSize: "0.85rem", color: "var(--omni-color-text-muted)" }}>
-                {experiment.alias} · version {experiment.currentVersion} · {experiment.config.trsType}
+              <dl className="atlas-folder-metadata">
+                <div><dt>Alias</dt><dd>{experiment.alias}</dd></div>
+                <div><dt>Version</dt><dd>{experiment.currentVersion}</dd></div>
+                <div><dt>Mode</dt><dd>{experiment.config.trsType}</dd></div>
+              </dl>
+              <div className="atlas-provenance-strip" aria-label="Evidence state">
+                <span className="atlas-stamp">PINNED</span>
+                <span>Immutable configuration version</span>
               </div>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </section>
   );
 }
