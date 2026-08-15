@@ -67,6 +67,9 @@ jobs:
       - name: Normalize pinned NIST OSCAL package
         run: npm run test:oscal
 
+      - name: Prove accessibility is a native OSCAL control domain
+        run: npm run test:oscal:accessibility
+
       - name: Compile and test JAIN SLEE conformance port
         run: mvn -B -f ports/jain-slee/pom.xml test
 
