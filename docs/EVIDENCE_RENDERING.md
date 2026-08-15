@@ -1,345 +1,256 @@
 # Evidence Rendering — shareable assurance artifacts
 
-Status: **design proposal**
+Status: **first vertical slice implemented**
 
-ACE Omni already has the authoritative pieces required for trustworthy evidence: pinned experiment identity, canonical commands, correlated observations, ordered evidence, immutable finalization, and replay. What it lacks is a first-class presentation layer that can turn those machine-readable records into artifacts a human can understand, share, embed, or review without weakening the provenance chain.
+ACE Omni already has authoritative machine-readable evidence: pinned experiment identity, canonical commands, ordered observations, immutable evidence manifests, checksums, and replay. Human reviewers need a presentation layer over those records, but that layer cannot become a second source of truth.
 
-This document proposes an **Evidence Renderer**: a deterministic presentation layer over canonical Omni evidence.
-
-The core rule is simple:
+The governing invariant is:
 
 > **Rendering may explain evidence. Rendering may never become evidence authority.**
 
-## Inspiration: Carbon's source-to-artifact boundary
+## Carbon as the architectural reference
 
-[Carbon](https://github.com/carbon-app/carbon) is useful here as an architectural reference, not as a dependency to import wholesale.
+[Carbon](https://github.com/carbon-app/carbon) is useful as a pattern rather than a dependency. It separates structured source from presentation configuration and produces a portable artifact while preserving a route back to source.
 
-Carbon accepts structured source, applies configurable presentation state, renders a deterministic visual artifact, and supports sharing or embedding that artifact while preserving a path back to the underlying source. Its value to Omni is the pattern:
-
-```text
-structured source
-    + presentation configuration
-             ↓
-       rendered artifact
-             ↓
-      share / embed / export
-             ↓
-       source remains available
-```
-
-For Omni, replace source code with canonical evidence:
+Omni applies the same boundary to evidence:
 
 ```text
-canonical Omni evidence
-    + renderer profile
-             ↓
-      Evidence Artifact
-             ↓
-   SVG / PNG / HTML / print
-             ↓
- canonical source + provenance
+canonical Omni object
+        ↓
+source-path projection builder
+        ↓
+disclosure policy
+        ↓
+EvidenceProjection
+        ↓
+integrity verification
+        ↓
+renderer profile
+        ↓
+semantic HTML / accessible SVG
 ```
 
-The renderer is therefore closer to a compiler target than a dashboard screenshot.
+The renderer behaves more like a compiler target than a dashboard screenshot.
 
-## Why this matters for assurance and GRC
+## Naming
 
-OSCAL, assessment results, experiment traces, adapter decisions, observation envelopes, checksums, and replay records are strong machine interfaces. They are not automatically strong review interfaces.
+`@ace-omni/domain` already has an `EvidenceArtifact` contract for stored evidence objects such as audio, video, captions, schedules, and configuration snapshots.
 
-A reviewer often needs a compact answer to questions such as:
-
-- What control, test, or assertion was evaluated?
-- What was the authoritative input?
-- What actually happened?
-- What evidence supports the result?
-- What runtime or adapter produced the observation?
-- Is the artifact complete, partial, stale, superseded, or unverifiable?
-- Can I get back to the canonical machine-readable record?
-
-A rendered evidence artifact should answer those questions without inventing a second source of truth.
+The human-review envelope is therefore named **`EvidenceProjection`**. A projection is derived, bounded, portable, and non-authoritative.
 
 ## Authority boundary
 
-The Evidence Renderer MUST NOT:
+The renderer MUST NOT:
 
-- assign a verdict that is absent from authoritative evaluation state;
-- reorder evidence in a way that changes its meaning;
-- suppress failed assertions while presenting a successful summary;
-- invent human-readable values that cannot be traced to canonical fields;
-- mutate experiment, assessment, run, control, or evidence state;
-- treat a screenshot, export, or cached card as sufficient proof of the underlying record.
+- assign or reinterpret a verdict;
+- choose which sensitive fields are disclosed;
+- hide failure, unknown, or review-required state through profile configuration;
+- invent values that are not bound to canonical source paths;
+- mutate experiment, run, assessment, control, or evidence state;
+- treat an export as sufficient proof when the canonical record is unavailable.
 
-The Evidence Renderer MAY:
+The renderer MAY:
 
-- select a bounded view of an authoritative record;
-- format timestamps, identifiers, digests, and structured values for readability;
-- apply a named presentation profile;
-- generate accessible SVG, HTML, PNG, or print/PDF-oriented output;
-- embed canonical identifiers, digests, and source links;
-- visually distinguish authoritative facts from commentary or interpretation.
+- format authoritative values for readability;
+- apply a named visual profile;
+- emit semantic HTML and SVG;
+- include source identifiers, digests, and approved source links;
+- expose provenance and trace information;
+- visually distinguish status as long as meaning never depends on color alone.
 
-This preserves the Omni invariant that **presentation is not authority**.
+## Projection construction
 
-## Evidence Artifact model
+`buildEvidenceProjection()` takes three inputs:
 
-A rendered artifact should be derived from an explicit artifact envelope rather than arbitrary UI state.
+1. an authoritative source object;
+2. a projection specification made of source paths;
+3. a disclosure policy.
 
-```json
-{
-  "artifactVersion": "1",
-  "artifactType": "control-result",
-  "source": {
-    "kind": "omni-evidence",
-    "runId": "run_01K...",
-    "evidenceId": "ev_01K...",
-    "sequence": 42,
-    "digest": "sha256:5ea8..."
+Dynamic display values are never supplied independently. The builder dereferences them from the authoritative object. This keeps the human-readable projection mechanically tied to source data.
+
+Example:
+
+```ts
+import {
+  buildEvidenceProjection,
+  renderEvidenceHtml,
+} from "@ace-omni/domain/evidence-rendering";
+
+const projection = await buildEvidenceProjection(authoritativeResult, {
+  artifactType: "control-result",
+  source: {
+    recordType: "assessment-result",
+    recordIdPath: "meta.recordId",
+    runIdPath: "meta.runId",
   },
-  "subject": {
-    "type": "oscal-control",
-    "id": "AC-2",
-    "title": "Account Management"
+  subject: {
+    type: "oscal-control",
+    idPath: "control.id",
+    titlePath: "control.title",
   },
-  "result": {
-    "status": "pass",
-    "summary": "Privileged account controls satisfied the bound assessment assertions."
+  result: {
+    statusPath: "result.status",
+    summaryPath: "result.summary",
   },
-  "provenance": {
-    "experimentVersionId": "expv_01K...",
-    "adapterId": "ibm-oscal",
-    "rendererProfile": "assurance-card/v1"
-  }
-}
+  facts: [
+    { label: "MFA", valuePath: "evidence.mfa" },
+  ],
+}, {
+  disclosureClass: "internal",
+  blockedSourcePaths: ["participant.rawIdentifier"],
+});
+
+const html = await renderEvidenceHtml(projection);
 ```
 
-The envelope is a **projection descriptor**. The authoritative values remain in the referenced Omni record.
+## Field-level provenance
 
-## Artifact types
+Every displayed dynamic field receives an `EvidenceFieldBinding` containing:
 
-The initial vocabulary should remain deliberately small.
+- the projection path;
+- the canonical source path;
+- the canonical source digest.
 
-### Control result
+The schema rejects projections missing required bindings. That includes subject identity, verdict, summary, dynamic facts, trace entries, and any displayed provenance fields.
 
-Human-readable representation of a control, objective, assertion, or assessment result.
+Bindings make the question "where did this value come from?" answerable without treating the rendered card itself as authority.
 
-Typical content:
+## Redaction and disclosure
 
-- control/assertion identity;
-- result and evaluation time;
-- bound evidence references;
-- source adapter/runtime;
-- canonical digest;
-- link back to the authoritative record.
+Disclosure is upstream of rendering.
 
-### Finding
+`EvidenceProjectionPolicy` controls:
 
-A failed, partial, ambiguous, or review-required result.
+- `public`, `internal`, or `restricted` classification;
+- whether a canonical source locator may travel with the projection;
+- which source paths are blocked.
 
-A finding artifact must make failure state at least as visually prominent as success state and must not collapse `unknown`, `not-applicable`, `not-tested`, and `failed` into one generic state.
+Blocked optional facts or trace entries are omitted before `EvidenceProjection` exists. A blocked field cannot remain hidden in CSS, metadata, SVG text, or DOM because it is never passed to the renderer.
 
-### Execution trace
+If policy blocks a field required to state the authoritative result — for example the verdict itself — projection construction fails rather than producing an ambiguous card.
 
-A bounded sequence of commands, observations, transitions, and terminal outcome.
+Renderer profiles have no redaction or field-disclosure controls.
 
-Useful for proving that higher-order authoring lowered into canonical commands and passed through ordinary adapter capability checks.
+## Deterministic identity
 
-### Evidence bundle summary
+Omni canonicalizes JSON before hashing by recursively sorting object keys and preserving array order.
 
-A compact index over a finalized evidence manifest or authorization package.
-
-### Replay proof
-
-A representation of pinned input identity, replay target, output identity, and equivalence or divergence result.
-
-### Provenance card
-
-A small artifact intended to travel with another export. It answers: **what canonical thing produced this?**
-
-## Visual grammar
-
-A Carbon-like renderer works because visual state is explicit. Omni should do the same with a constrained **renderer profile** rather than arbitrary CSS.
-
-A profile may define:
-
-- typography scale;
-- density;
-- spacing;
-- window/card treatment;
-- light/dark presentation;
-- code/data syntax presentation;
-- status iconography;
-- export dimensions;
-- organization branding when allowed;
-- redaction presentation rules;
-- whether provenance is compact, expanded, or both.
-
-A profile must not redefine semantic status colors in a way that makes results misleading. Status also must never depend on color alone.
-
-## Example assurance card
+The implementation separates four identities:
 
 ```text
-┌──────────────────────────────────────────────────────┐
-│ AC-2  ACCOUNT MANAGEMENT                    PASS ✓   │
-│                                                      │
-│ Source: SSP §9.3                                     │
-│ Evaluator: omni/oscal                                │
-│ Adapter: IBM OSCAL                                   │
-│ Run: 01K2...                                         │
-│                                                      │
-│ Evidence                                             │
-│ ──────────────────────────────────────────────────── │
-│ MFA required for privileged accounts                 │
-│ ✓ configuration observed                             │
-│ ✓ implementation statement matched                  │
-│ ✓ evidence checksum verified                         │
-│                                                      │
-│ SHA256  5ea8...                                      │
-└──────────────────────────────────────────────────────┘
-```
-
-The card is useful because it is readable. It is trustworthy only because each displayed assertion is traceable to canonical evidence.
-
-## Source-backlink requirement
-
-Every shareable artifact MUST preserve a path back to the canonical record when the deployment permits it.
-
-For interactive HTML this should be a direct link.
-
-For static SVG/PNG/print output, the artifact should include at least:
-
-- canonical artifact/evidence identifier;
-- digest or short digest;
-- human-readable source locator or QR/deep-link when appropriate;
-- renderer profile/version.
-
-If the canonical source is not externally accessible, the artifact should say so rather than imply public verifiability.
-
-## Accessibility requirements
-
-Evidence rendering is part of the assurance surface and must itself be accessible.
-
-At minimum:
-
-- semantic HTML for interactive artifacts;
-- useful text alternatives for exported visual artifacts;
-- status conveyed by text/iconography as well as color;
-- sufficient contrast;
-- keyboard-operable source/provenance controls;
-- scalable text without loss of information;
-- no essential evidence encoded only spatially;
-- predictable reading order;
-- generated SVG that retains meaningful text when practical rather than flattening everything into paths.
-
-For a system that may evaluate accessibility compliance, inaccessible evidence presentation would be an own-goal.
-
-## Determinism and reproducibility
-
-Two renders from the same artifact envelope and renderer profile version should be semantically equivalent.
-
-Where byte-for-byte reproducibility is practical, prefer it. Where platform font/rendering differences prevent exact bytes, preserve deterministic content identity separately from presentation bytes.
-
-Recommended identities:
-
-```text
-sourceDigest      = digest(canonical evidence)
-projectionDigest  = digest(artifact envelope)
+sourceDigest      = digest(canonical authoritative source)
+projectionDigest  = digest(EvidenceProjection without projectionDigest)
 profileDigest     = digest(renderer profile)
-renderDigest      = digest(export bytes)   // optional / format-specific
+renderDigest      = digest(rendered bytes)
 ```
 
-This lets Omni distinguish:
+This distinguishes:
 
 - the thing being proven;
 - the bounded human-readable projection;
 - the presentation rules;
 - the particular exported file.
 
-## Security and redaction
+Changing a theme changes profile/render identity without changing evidence or projection identity.
 
-Evidence cards are unusually easy to forward outside their original context. The renderer therefore needs explicit disclosure and redaction behavior.
+## Integrity verification
 
-A renderer profile should be able to declare:
+The public package export is intentionally sealed behind verification.
 
-- public / internal / restricted presentation class;
-- which fields are displayable;
-- whether participant identifiers are pseudonymized;
-- whether raw observations may be shown;
-- whether source links require authentication;
-- whether generated exports receive a visible classification/banner treatment.
+Before HTML or SVG rendering, Omni recomputes `projectionDigest` and rejects a projection that was altered after construction.
 
-Redaction must occur before rendering. Hiding values with CSS is not redaction.
+Server-side consumers may additionally call `verifyEvidenceProjectionAgainstSource()` to recompute the authoritative source digest and prove that the projection still corresponds to the supplied canonical object.
 
-## Proposed implementation boundary
+This does not make a projection authoritative. It proves that the derived artifact has not drifted from the source and projection state it claims to represent.
 
-The first implementation should be small and dependency-light:
+## Artifact vocabulary
+
+The first slice supports:
+
+### `control-result`
+
+A human-readable control, assertion, objective, or assessment result.
+
+### `finding`
+
+A failed, partial, ambiguous, or review-required result. Failure state receives the same structural prominence as success state.
+
+### `execution-trace`
+
+A bounded sequence of commands, observations, transitions, and terminal outcome. This is suitable for proving that higher-order authoring lowered into canonical Omni commands and passed through ordinary capability checks.
+
+Future projection types may include evidence-bundle summaries, replay proofs, and standalone provenance cards without changing the authority model.
+
+## Renderer profile
+
+The first built-in profile is:
 
 ```text
-canonical Omni object
-        ↓
-projection builder
-        ↓
-EvidenceArtifact envelope
-        ↓
-renderer profile
-        ↓
-React/SVG/HTML renderer
-        ↓
-interactive view or export
+assurance-card/v1
 ```
 
-The renderer should consume already-normalized Omni objects. It should not know how to query OSCAL, interpret SIP, evaluate a control, or decide an experiment verdict.
+It controls only presentation:
 
-Those remain upstream responsibilities.
+- light/dark treatment;
+- compact/comfortable density;
+- compact/expanded provenance treatment.
 
-## First vertical slice
+It cannot suppress evidence, alter semantics, choose disclosure fields, or reclassify result states.
 
-A useful first slice would implement three artifact types:
+## Outputs
 
-1. `control-result`
-2. `finding`
-3. `execution-trace`
+### Semantic HTML
 
-with one built-in profile:
+HTML uses semantic headings, lists, definition lists, links, status text, and accessible labels. Dynamic content is escaped before insertion.
 
-`assurance-card/v1`
+### SVG
 
-and two outputs:
+SVG exports include:
 
-- semantic HTML for the Omni UI;
-- SVG export for portable sharing.
+- `role="img"`;
+- `<title>` and `<desc>`;
+- textual status labels and symbols;
+- source and projection digests;
+- disclosure class.
 
-PNG can be derived later from the SVG/HTML render path rather than becoming the canonical output.
+Status is never encoded by color alone.
 
-## Acceptance criteria
+## Validation
 
-The first renderer should prove these properties:
+The focused evidence-rendering suite verifies:
 
-1. identical source + artifact envelope + profile produces semantically identical output;
-2. every displayed result is traceable to an authoritative source field;
-3. rendered artifacts cannot mutate source state;
-4. failure/unknown states cannot be hidden by profile configuration;
-5. source identity and digest are present in portable exports;
-6. exported artifacts have usable accessible equivalents;
-7. profile changes alter presentation identity without altering evidence identity;
-8. redacted exports contain no redacted source values in markup, metadata, or hidden DOM;
-9. a renderer can display OSCAL-oriented assurance results without becoming OSCAL-specific;
-10. the same renderer can display non-GRC experiment evidence.
+1. canonical object ordering produces stable hashes;
+2. displayed values are derived from authoritative source paths;
+3. every dynamic field receives a source binding;
+4. blocked values do not survive in projection, HTML, or SVG;
+5. required verdict fields cannot be redacted into ambiguity;
+6. renderer profiles cannot hide semantic state;
+7. equivalent source/projection/profile inputs render deterministically;
+8. profile changes do not change evidence identity;
+9. forbidden source links are omitted;
+10. tampered projections are rejected before rendering;
+11. projections can be checked against the original authoritative source.
 
-## What to borrow from Carbon — and what not to
+A dedicated `evidence-rendering-validation` workflow typechecks and tests `@ace-omni/domain` independently. The repository-wide validation currently still fails earlier on the pre-existing dependency audit inherited from `main`; this feature introduces no dependency changes.
 
-Borrow the architectural ideas:
+## What was borrowed from Carbon
 
-- structured source separated from presentation configuration;
-- a single canonical render surface;
-- named customization state;
-- multiple export/share paths;
-- preservation of access to underlying source;
-- portable visual artifacts that are useful outside the authoring UI.
+Borrowed:
 
-Do **not** make Carbon itself an architectural dependency. Omni needs stronger provenance, deterministic identity, redaction, accessibility, and authority boundaries than a code-image tool was designed to provide.
+- source separated from presentation configuration;
+- explicit named presentation state;
+- one canonical render path;
+- portable outputs;
+- preservation of a route back to source.
 
-The useful lesson is the boundary:
+Not borrowed:
+
+- authority semantics;
+- disclosure policy;
+- provenance requirements;
+- deterministic source/projection identities;
+- evidence-specific accessibility and tamper checks.
+
+The useful lesson remains the boundary:
 
 > **Machine-readable truth can compile into a human-readable artifact without ceasing to be machine-readable truth.**
-
-That is the presentation layer Omni needs for automated assurance.
