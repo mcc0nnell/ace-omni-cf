@@ -1,6 +1,6 @@
 # Discovery Trials — bounded scientific discovery in Omni
 
-Status: **experimental proving-ground contract**
+Status: **experimental proving-ground contract with executable PG-003 proof**
 
 ACE Omni already knows how to execute controlled experiments, preserve observations, compare runtime semantics, and produce evidence. Discovery trials add a different question:
 
@@ -106,10 +106,10 @@ The budget makes exploration measurable and bounded. It also prevents a successf
 
 PG-003 currently declares:
 
-- maximum 50 experiments;
+- maximum 8 experiments;
 - maximum 10 resets.
 
-Those are proving-ground defaults for the planned trial, not universal Omni limits.
+The executable proof currently converges in four experiments.
 
 ### Hypothesis ledger
 
@@ -139,21 +139,41 @@ The agent being evaluated may propose claims and explanations, but it may not gr
 
 ## PG-003 — Discovery Under Uncertainty
 
-The first discovery trial is intentionally `planned`.
+PG-003 is now an executable **proven** discovery trial using a deliberately small synthetic authorization world.
 
-Its purpose is to establish the contract before wiring a particular world or model harness.
+The world contains four hidden Boolean rules governing user write, user delete, locked-state read, and post-downgrade session behavior. The discovery routine does not receive those rule values. It receives only eight authorized experiment definitions and an execution function.
 
-A future runnable vertical slice should use a deliberately small hidden-state system with:
+The agent begins with all 16 possible rule combinations. For every step it scores the still-authorized experiments by information gain, chooses the most discriminating experiment, executes it through the fixed command boundary, records the observation, and eliminates incompatible hypotheses.
 
-1. a pinned hidden oracle;
-2. a narrow authorized action vocabulary;
-3. deterministic reset/checkpoint support;
-4. complete action/observation capture;
-5. a hypothesis ledger;
-6. an independent verdict that compares demonstrated claims with the hidden oracle;
-7. evidence proving that all effects traveled through authorized Omni boundaries.
+The deterministic proof currently produces:
 
-Only after that slice is deterministic should the pattern expand to richer environments such as SCEPTRE worlds, communications runtimes, browser applications, or deployed test systems.
+```text
+16 hypotheses
+  ↓ locked_read = denied
+8 hypotheses
+  ↓ post_downgrade_delete = denied
+4 hypotheses
+  ↓ user_delete = denied
+2 hypotheses
+  ↓ user_write = allowed
+1 hypothesis
+```
+
+The resulting rule-set digest must equal the hidden oracle digest. An independent deterministic grader also requires:
+
+- exact discovery of the hidden rule set;
+- every executed experiment to preserve the declared command boundary;
+- every final claim to bind to evidence IDs;
+- the run to remain inside the experiment budget.
+
+`npm run test:discovery:pg003` writes:
+
+- `conformance/generated/discovery/PG-003-record.json`
+- `conformance/generated/discovery/PG-003-verdict.json`
+
+`npm run test:elixipg` runs this proof before validating the full proving-ground registry. CI therefore cannot call PG-003 proven unless the discovery proof runs and the independent verdict artifact exists.
+
+This is intentionally a small proof of the discovery architecture, not a claim that a synthetic Boolean world is representative of a production federal system. The next expansion can replace the synthetic world with SCEPTRE, a communications runtime, browser application, or other governed system under test while retaining the same discovery/evidence contract.
 
 ## Relationship to the broader Omni stack
 
