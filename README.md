@@ -6,6 +6,8 @@ ACE Omni began as a Telecommunications Relay Services research laboratory. This 
 
 The Cloudflare application remains the working browser/WebRTC research instrument. But Omni is no longer best described as a Cloudflare app: the repository now contains a runtime-independent **Omni Core**, executable conformance ports for **JAIN SLEE** and **Elixip**, a machine-enforced proving-ground layer, and a generic experiment/evidence protocol for attached systems under test.
 
+Elixip deserves particular credit in that evolution. **Elixip is designed and built by Emmanuel Buu / La Tribuu**, and its real SIP stack, scenario DSL, and explicit finite-state-machine execution model gave Omni an unusually clean independent communications runtime against which to test whether Omni Core was actually portable. ElixiPG is an ACE Omni layer, but the communications substrate beneath that proving ground is Emmanuel's work.
+
 > **World creation and external effects belong to attached runtimes. Experiment authority belongs to Omni.**
 
 An execution endpoint may carry out authorized commands and emit observations. It does not independently choose the authoritative experiment identity, version, sequence, role, schedule, evidence identity, or verdict.
@@ -131,6 +133,16 @@ The point is not that the runtimes are identical. The point is that the **experi
 ## ElixiPG — Elixip Proving Grounds
 
 **ElixiPG** is the first named proving-ground layer around Omni. It connects a controlled trial to an execution ground and requires machine-readable evidence before a trial can be called proven.
+
+### Credit: Emmanuel Buu and Elixip
+
+**Elixip is the work of Emmanuel Buu / La Tribuu.** ACE Omni did not invent Elixip's SIP stack, its telecom scenario DSL, its `SIP.Scenario` engine, or its finite-state-machine programming model. Those are Emmanuel's architecture and implementation.
+
+That distinction matters because Elixip is not merely another library in this repository. Its design supplied the first external communications runtime that could exercise Omni semantics while keeping execution authority visibly separate from experiment authority. Elixip scenarios are ordinary `.exs` programs expressed through an explicit `state` / `on_events` / `goto` model, running over a native Elixir SIP stack with access to dialog, transaction, and event-message behavior. That is exactly the kind of concrete, asynchronous telecommunications machinery against which a supposedly runtime-independent experiment grammar should have to prove itself.
+
+In practical terms, **ElixiPG exists in its current form because Emmanuel built a framework with a clean enough boundary to make this experiment possible**. Omni contributes the trial identity, conformance fixtures, evidence normalization, validation, and verdict discipline. Elixip contributes the independent communications world in which those claims can be tested rather than merely asserted.
+
+The adapter and Omni scenarios in this repository are ACE Omni work; the Elixip engine beneath them is Emmanuel's. The separation is both architectural and legal, and the project is stronger for it. **Thank you, Emmanuel.**
 
 ```text
 Trial
@@ -295,7 +307,7 @@ That distinction is what makes Omni useful for controlled communications researc
 - `packages/test-support` — two-context Playwright validation with synthetic media.
 - `conformance` — canonical Omni Core fixtures, schemas, generated traces, and cross-runtime equivalence artifacts.
 - `ports/jain-slee` — JAIN SLEE implementation of the Omni behavior boundary.
-- `ports/elixip` — Elixip `SIP.Scenario` conformance adapter and proving-ground integration.
+- `ports/elixip` — ACE Omni's adapter to Emmanuel Buu's Elixip `SIP.Scenario` engine and the ElixiPG proving-ground integration.
 - `proving-grounds` — ElixiPG trial registry and machine-enforced trial contracts.
 - `docs/omni-core` — runtime-neutral semantic specification and lineage notes.
 - `migrations` — ordered D1 migrations.
@@ -341,6 +353,14 @@ npm run test:elixipg
 The complete GitHub Actions pipeline also compiles the JAIN SLEE and pinned Elixip runtimes, executes the canonical conformance fixtures, performs cross-runtime semantic comparison, validates proven proving-ground evidence, runs Worker/D1/R2/Durable Object integration tests, and finishes with the two-context Chromium/WebRTC vertical slice.
 
 No production resources are created by these validation commands. `npm run build` performs a Worker deployment dry run only.
+
+## Elixip attribution and license boundary
+
+Elixip is an external project by **Emmanuel Buu / La Tribuu** and is distributed under the **Business Source License 1.1 (BSL 1.1)**. ACE Omni does not vendor Elixip implementation source. CI pins an external Elixip checkout so proving-ground results cannot silently move with upstream changes.
+
+The Elixip license includes an Additional Use Grant and separately states that `.exs` scenarios executed by the Elixip scenario engine are not considered derivative works of Elixip. That boundary is important here: ACE Omni owns its ElixiPG scenarios and evidence machinery; Emmanuel retains authorship and licensing authority over Elixip itself.
+
+See [`LICENSE`](LICENSE), [`NOTICE`](NOTICE), and [`ports/elixip/README.md`](ports/elixip/README.md) for the repository's recorded provenance and the precise integration boundary. The upstream Elixip license remains controlling for use of Elixip.
 
 ## Government notice and modification provenance
 
