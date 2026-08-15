@@ -8,6 +8,17 @@ export type OmniBehaviorDuty =
   | "report"
   | "provision";
 
+export const OMNI_REASONING_ROLES = [
+  "collector",
+  "researcher",
+  "assessor",
+  "challenger",
+  "remediator",
+  "reporter",
+] as const;
+
+export type OmniReasoningRole = (typeof OMNI_REASONING_ROLES)[number];
+
 export type OmniBehaviorCompletionKind =
   | "evidence-emitted"
   | "assertion-recorded"
@@ -27,6 +38,12 @@ export interface OmniBehaviorSpec {
   instructionRef: string;
   instructionSha256: string;
   duty: OmniBehaviorDuty;
+  /**
+   * Optional cognitive role requested from an external intelligence boundary
+   * such as Wintermute. This names the kind of reasoning needed, never a
+   * provider/model or execution capability.
+   */
+  reasoningRole?: OmniReasoningRole;
   separationFrom: OmniBehaviorDuty[];
   requiredEvidence: string[];
   completion: OmniBehaviorCompletionContract;
@@ -50,6 +67,7 @@ export interface OmniBehaviorBinding {
   principalId: string;
   behaviorSpecId: string;
   duty: OmniBehaviorDuty;
+  reasoningRole?: OmniReasoningRole;
   instructionRef: string;
   instructionSha256: string;
   requiredEvidence: string[];
@@ -70,6 +88,8 @@ const DUTIES = new Set<OmniBehaviorDuty>([
   "provision",
 ]);
 
+const REASONING_ROLES = new Set<OmniReasoningRole>(OMNI_REASONING_ROLES);
+
 const COMPLETION_KINDS = new Set<OmniBehaviorCompletionKind>([
   "evidence-emitted",
   "assertion-recorded",
@@ -80,9 +100,9 @@ const COMPLETION_KINDS = new Set<OmniBehaviorCompletionKind>([
 ]);
 
 // A behavior specification can shape reasoning and completion semantics, but
-// it must never grant execution authority. These fields belong to the
-// authoritative operator/runtime layer and are rejected if smuggled into a
-// behavior-spec object at runtime.
+// it must never grant execution authority or select its own model. These
+// fields belong to the authoritative operator/runtime or external model-policy
+// layer and are rejected if smuggled into a behavior-spec object at runtime.
 const FORBIDDEN_AUTHORITY_FIELDS = new Set([
   "executor",
   "adapterId",
@@ -100,6 +120,13 @@ const FORBIDDEN_AUTHORITY_FIELDS = new Set([
   "script",
   "executable",
   "shell",
+  "provider",
+  "providerId",
+  "allowedProviders",
+  "model",
+  "modelId",
+  "modelName",
+  "modelRoute",
 ]);
 
 const SHA256 = /^[0-9a-f]{64}$/i;
@@ -118,7 +145,7 @@ function assertNoAuthorityMaterial(spec: OmniBehaviorSpec): void {
     if (FORBIDDEN_AUTHORITY_FIELDS.has(key)) {
       throw new Error(
         `Omni behavior spec ${spec.id} contains forbidden authority field ${key}; ` +
-          "behavior may constrain cognition but may not grant execution authority",
+          "behavior may constrain cognition but may not grant execution authority or select a model",
       );
     }
   }
@@ -134,6 +161,14 @@ function validateSpec(spec: OmniBehaviorSpec): void {
     throw new Error(`Omni behavior spec ${spec.id} instructionSha256 must be a 64-character SHA-256 digest`);
   }
   if (!DUTIES.has(spec.duty)) throw new Error(`Omni behavior spec ${spec.id} has unsupported duty ${spec.duty}`);
+  if (spec.reasoningRole && !REASONING_ROLES.has(spec.reasoningRole)) {
+    throw new Error(`Omni behavior spec ${spec.id} has unsupported reasoning role ${spec.reasoningRole}`);
+  }
+  if (spec.duty === "approve" && spec.reasoningRole) {
+    throw new Error(
+      `Omni behavior spec ${spec.id} may not assign model reasoning role ${spec.reasoningRole} to approval duty`,
+    );
+  }
   if (!COMPLETION_KINDS.has(spec.completion.kind)) {
     throw new Error(`Omni behavior spec ${spec.id} has unsupported completion kind ${spec.completion.kind}`);
   }
@@ -208,6 +243,7 @@ export function composeBehaviorBindings(
     principalId: assignment.principalId,
     behaviorSpecId: spec.id,
     duty: spec.duty,
+    ...(spec.reasoningRole ? { reasoningRole: spec.reasoningRole } : {}),
     instructionRef: spec.instructionRef,
     instructionSha256: spec.instructionSha256,
     requiredEvidence: [...spec.requiredEvidence],
@@ -227,6 +263,7 @@ export const SC7_BEHAVIOR_MANIFEST: OmniBehaviorManifest = {
       instructionRef: "fixture://sc7/ssp-collector/v1",
       instructionSha256: "23a050299ea1e1ded12390b8d8770147a6e3e9c0415e3e9df30919e5618cfcb1",
       duty: "collect",
+      reasoningRole: "collector",
       separationFrom: ["assess", "remediate", "approve"],
       requiredEvidence: ["ssp-implementation-statement"],
       completion: {
@@ -240,6 +277,7 @@ export const SC7_BEHAVIOR_MANIFEST: OmniBehaviorManifest = {
       instructionRef: "fixture://sc7/boundary-evidence-collector/v1",
       instructionSha256: "1856d2dc1938cc0a1a9af594345d961731cecef600ee67fba87d1f6eed4a6757",
       duty: "collect",
+      reasoningRole: "collector",
       separationFrom: ["assess", "remediate", "approve"],
       requiredEvidence: ["security-group-snapshot"],
       completion: {
@@ -253,6 +291,7 @@ export const SC7_BEHAVIOR_MANIFEST: OmniBehaviorManifest = {
       instructionRef: "fixture://sc7/contradiction-assessor/v1",
       instructionSha256: "3d3516d8c64f5d5b38b1c296b302f14e0f2782d00a029f864b3fbb6db7052fa4",
       duty: "assess",
+      reasoningRole: "challenger",
       separationFrom: ["collect", "remediate", "approve"],
       requiredEvidence: ["ssp-implementation-statement", "security-group-snapshot"],
       completion: {
