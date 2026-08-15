@@ -18,63 +18,26 @@ function Shell({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <header
-        role="banner"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0.75rem 1.5rem",
-          borderBottom: "1px solid var(--omni-color-border)",
-          background: "var(--omni-color-surface)",
-        }}
-      >
-        <a
-          href="/"
-          style={{
-            textDecoration: "none",
-            color: "inherit",
-            fontWeight: 700,
-            fontSize: "1.15rem",
-          }}
-        >
+    <div className="omni-shell">
+      <header role="banner" className="omni-shell-header" data-material="cardstock">
+        <a href="/" className="omni-shell-brand">
           ACE Omni
         </a>
         <nav aria-label="Primary">
           {user ? (
-            <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-              <span style={{ color: "var(--omni-color-text-muted)", fontSize: "0.9rem" }}>
+            <div className="omni-shell-user">
+              <span className="omni-shell-user-label">
                 {user.displayName} ({user.role})
               </span>
-              <button
-                type="button"
-                onClick={onLogout}
-                style={{
-                  background: "transparent",
-                  border: "1px solid var(--omni-color-border)",
-                  color: "var(--omni-color-text)",
-                  padding: "0.35rem 0.75rem",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                }}
-              >
+              <button type="button" onClick={onLogout} className="omni-secondary-action">
                 Log out
               </button>
             </div>
           ) : null}
         </nav>
       </header>
-      <main style={{ flex: 1, padding: "1.5rem" }}>{children}</main>
-      <footer
-        role="contentinfo"
-        style={{
-          padding: "0.75rem 1.5rem",
-          borderTop: "1px solid var(--omni-color-border)",
-          fontSize: "0.8rem",
-          color: "var(--omni-color-text-muted)",
-        }}
-      >
+      <main className="omni-shell-main">{children}</main>
+      <footer role="contentinfo" className="omni-shell-footer" data-material="paper" data-age="light">
         ACE Omni — TRS research laboratory. Government notice preserved from original release.
       </footer>
     </div>
@@ -111,7 +74,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div role="status" aria-live="polite" style={{ padding: "2rem", textAlign: "center" }}>
+      <div role="status" aria-live="polite" className="omni-loading-slip" data-material="paper">
         Loading…
       </div>
     );
