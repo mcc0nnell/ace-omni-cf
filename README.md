@@ -4,7 +4,17 @@
 
 ACE Omni began as a Telecommunications Relay Services research laboratory. This repository resurrects that work and separates the enduring experiment model from any one implementation runtime.
 
+### Origin: MITRE's ACE Omni
+
+**ACE Omni originates with The MITRE Corporation.** The original public repository, [`mitrefccace/ace-omni`](https://github.com/mitrefccace/ace-omni), describes ACE Omni as a TRS research platform for creating study experiences that emulate existing relay-service solutions or demonstrate novel ones, while managing experimental data and setup tools. Its stated goals included making TRS research faster and less expensive, producing defensible and repeatable results, and lowering barriers for researchers working on communications accessibility.
+
+That original platform is the foundation of this repository. It was produced for the U.S. Government under Contract Number **75FCMC18D0047**, subject to **FAR 52.227-14, Rights in Data—General**, and released by MITRE as **Approved for Public Release; Distribution Unlimited 24-0463**. The original MITRE notice is preserved verbatim in [`LICENSE`](LICENSE).
+
+The 2026 work is therefore not presented as a new project that merely happens to share the ACE Omni name. It is an explicit **resurrection and architectural continuation of MITRE's released research instrument**. The runtime has changed, the implementation has been substantially rebuilt, and the experiment model has been extracted and extended—but the project owes its starting point, its research purpose, and important parts of its experimental lineage to the MITRE team that built and released the original ACE Omni.
+
 The Cloudflare application remains the working browser/WebRTC research instrument. But Omni is no longer best described as a Cloudflare app: the repository now contains a runtime-independent **Omni Core**, executable conformance ports for **JAIN SLEE** and **Elixip**, a machine-enforced proving-ground layer, and a generic experiment/evidence protocol for attached systems under test.
+
+Elixip deserves particular credit in that evolution. **Elixip is designed and built by Emmanuel Buu / La Tribuu**, and its real SIP stack, scenario DSL, and explicit finite-state-machine execution model gave Omni an unusually clean independent communications runtime against which to test whether Omni Core was actually portable. ElixiPG is an ACE Omni layer, but the communications substrate beneath that proving ground is Emmanuel's work.
 
 > **World creation and external effects belong to attached runtimes. Experiment authority belongs to Omni.**
 
@@ -131,6 +141,16 @@ The point is not that the runtimes are identical. The point is that the **experi
 ## ElixiPG — Elixip Proving Grounds
 
 **ElixiPG** is the first named proving-ground layer around Omni. It connects a controlled trial to an execution ground and requires machine-readable evidence before a trial can be called proven.
+
+### Credit: Emmanuel Buu and Elixip
+
+**Elixip is the work of Emmanuel Buu / La Tribuu.** ACE Omni did not invent Elixip's SIP stack, its telecom scenario DSL, its `SIP.Scenario` engine, or its finite-state-machine programming model. Those are Emmanuel's architecture and implementation.
+
+That distinction matters because Elixip is not merely another library in this repository. Its design supplied the first external communications runtime that could exercise Omni semantics while keeping execution authority visibly separate from experiment authority. Elixip scenarios are ordinary `.exs` programs expressed through an explicit `state` / `on_events` / `goto` model, running over a native Elixir SIP stack with access to dialog, transaction, and event-message behavior. That is exactly the kind of concrete, asynchronous telecommunications machinery against which a supposedly runtime-independent experiment grammar should have to prove itself.
+
+In practical terms, **ElixiPG exists in its current form because Emmanuel built a framework with a clean enough boundary to make this experiment possible**. Omni contributes the trial identity, conformance fixtures, evidence normalization, validation, and verdict discipline. Elixip contributes the independent communications world in which those claims can be tested rather than merely asserted.
+
+The adapter and Omni scenarios in this repository are ACE Omni work; the Elixip engine beneath them is Emmanuel's. The separation is both architectural and legal, and the project is stronger for it. **Thank you, Emmanuel.**
 
 ```text
 Trial
@@ -295,7 +315,7 @@ That distinction is what makes Omni useful for controlled communications researc
 - `packages/test-support` — two-context Playwright validation with synthetic media.
 - `conformance` — canonical Omni Core fixtures, schemas, generated traces, and cross-runtime equivalence artifacts.
 - `ports/jain-slee` — JAIN SLEE implementation of the Omni behavior boundary.
-- `ports/elixip` — Elixip `SIP.Scenario` conformance adapter and proving-ground integration.
+- `ports/elixip` — ACE Omni's adapter to Emmanuel Buu's Elixip `SIP.Scenario` engine and the ElixiPG proving-ground integration.
 - `proving-grounds` — ElixiPG trial registry and machine-enforced trial contracts.
 - `docs/omni-core` — runtime-neutral semantic specification and lineage notes.
 - `migrations` — ordered D1 migrations.
@@ -342,13 +362,27 @@ The complete GitHub Actions pipeline also compiles the JAIN SLEE and pinned Elix
 
 No production resources are created by these validation commands. `npm run build` performs a Worker deployment dry run only.
 
-## Government notice and modification provenance
+## Elixip attribution and license boundary
 
-The original ACE Omni notice is preserved in [`LICENSE`](LICENSE), and the derivative-work record is separated in [`NOTICE`](NOTICE). The original notice states that the software/technical data was produced for the U.S. Government under Contract Number 75FCMC18D0047 and is subject to FAR 52.227-14.
+Elixip is an external project by **Emmanuel Buu / La Tribuu** and is distributed under the **Business Source License 1.1 (BSL 1.1)**. ACE Omni does not vendor Elixip implementation source. CI pins an external Elixip checkout so proving-ground results cannot silently move with upstream changes.
 
-- **Original material:** Approved for Public Release; Distribution Unlimited 24-0463.
-- **Later modifications:** 2026, Robert McConnell ([@mcc0nnell](https://github.com/mcc0nnell)), as identified by this repository's Git history.
+The Elixip license includes an Additional Use Grant and separately states that `.exs` scenarios executed by the Elixip scenario engine are not considered derivative works of Elixip. That boundary is important here: ACE Omni owns its ElixiPG scenarios and evidence machinery; Emmanuel retains authorship and licensing authority over Elixip itself.
 
-The 24-0463 identifier is reproduced only as part of the original notice. This repository does not represent it as review or public-release approval of the later modifications. This is not an official Federal Communications Commission publication, and no endorsement by the FCC or the U.S. Government is implied.
+See [`LICENSE`](LICENSE), [`NOTICE`](NOTICE), and [`ports/elixip/README.md`](ports/elixip/README.md) for the repository's recorded provenance and the precise integration boundary. The upstream Elixip license remains controlling for use of Elixip.
 
-These provenance statements distinguish the modifications; they do not amend or relicense the original material.
+## MITRE / FCC origin and modification provenance
+
+The original ACE Omni notice is preserved **verbatim** in [`LICENSE`](LICENSE), and the derivative-work record is separated in [`NOTICE`](NOTICE). That arrangement is deliberate: `LICENSE` records the legal notice attached to the MITRE-origin material; `NOTICE` explains the later repository lineage without pretending to rewrite MITRE's terms.
+
+The provenance chain is:
+
+- **MITRE original:** The MITRE Corporation designed and implemented the original ACE Omni TRS research platform and published it from the `mitrefccace` organization. Its README defined the core research mission around configurable TRS experiments, repeatable data, defensible conclusions, and lower barriers to accessibility research.
+- **Government contract and release:** The original software/technical data was produced for the U.S. Government under Contract Number **75FCMC18D0047**, subject to **FAR 52.227-14**, with MITRE's 2024 copyright notice. The release carries **Approved for Public Release; Distribution Unlimited 24-0463**.
+- **2026 resurrection and extension:** Robert McConnell ([@mcc0nnell](https://github.com/mcc0nnell)) rebuilt the working platform around Cloudflare infrastructure, extracted Omni Core, added independent runtime ports, conformance testing, proving grounds, and the broader experiment/evidence architecture. Git history is the authoritative record of those later changes.
+- **Independent runtime contribution:** Emmanuel Buu / La Tribuu independently created Elixip. ACE Omni later integrated Elixip as an external proving runtime; that integration does not make Elixip MITRE work or make Emmanuel an author of ACE Omni.
+
+The distinction matters in both directions. **The 2026 project does not claim MITRE's original work as newly authored work, and MITRE is not represented as having authored, reviewed, approved, or endorsed the later modifications.** Likewise, the FCC and U.S. Government are not represented as having reviewed or approved the revived system.
+
+The identifier **24-0463** is reproduced only as provenance for the original MITRE release. It is not represented as a new public-release determination, copyright permission, or authorization for the later modifications.
+
+ACE Omni exists today because MITRE built and publicly released the original research instrument. The current repository deliberately preserves that lineage while making the boundaries around later engineering visible.
