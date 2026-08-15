@@ -44,9 +44,10 @@ The repository currently contains:
 - a secure Cloudflare-native human-in-the-loop communications research path with immutable experiment versions, pinned calls, signed invitations, synchronized conditions, WebRTC media, durable evidence, replay, and export;
 - **Omni Core**, the runtime-neutral experiment grammar extracted from the original and Cloudflare implementations;
 - canonical conformance fixtures whose normalized behavior is checked across **Cloudflare Omni, JAIN SLEE Omni, and Elixip Omni**;
-- **ElixiPG**, a machine-enforced proving-ground registry;
+- the **Omni Proving Grounds**, a machine-enforced trial registry supporting `conformance` and `discovery` modes, with ElixiPG as its first named ground;
 - **PG-001 — Runtime Independence**, currently `proven` across all three runtimes;
 - **PG-002 — SIP Establishment**, currently `planned` on `main`;
+- **PG-003 — Discovery Under Uncertainty**, currently `proven` as the first bounded-discovery trial;
 - a generic **Emulytics** experiment-run, adapter, observation, and evidence protocol;
 - deterministic VRS video timing primitives and a WebRTC telemetry evidence path.
 
@@ -58,7 +59,6 @@ Several open development branches extend that foundation. They are intentionally
 - **Assurance / GRC:** deterministic OSCAL authorization-package graphs ([#22](https://github.com/mcc0nnell/ace-omni-cf/pull/22)), composable Regimes ([#23](https://github.com/mcc0nnell/ace-omni-cf/pull/23)), executable assessment packs ([#27](https://github.com/mcc0nnell/ace-omni-cf/pull/27)), OSCAL-native accessibility assurance ([#30](https://github.com/mcc0nnell/ace-omni-cf/pull/30)), and a candidate JAIN SLEE authorization profile ([#31](https://github.com/mcc0nnell/ace-omni-cf/pull/31)).
 - **Experiment/world modeling:** FIREWHEEL-inspired Experiment IR ([#24](https://github.com/mcc0nnell/ace-omni-cf/pull/24)), Staghorn-style state branching ([#25](https://github.com/mcc0nnell/ace-omni-cf/pull/25)), and pinned SCEPTRE world bindings ([#28](https://github.com/mcc0nnell/ace-omni-cf/pull/28)).
 - **Operator and assurance UI:** a spatial operating workspace ([#21](https://github.com/mcc0nnell/ace-omni-cf/pull/21)), governed operator/behavior contracts ([#26](https://github.com/mcc0nnell/ace-omni-cf/pull/26)), explorable assurance graphs ([#29](https://github.com/mcc0nnell/ace-omni-cf/pull/29)), and the Resilience Atlas rendering grammar ([#33](https://github.com/mcc0nnell/ace-omni-cf/pull/33)).
-- **Bounded discovery:** discovery-under-uncertainty trials for the broader Omni Proving Grounds ([#32](https://github.com/mcc0nnell/ace-omni-cf/pull/32)).
 
 The merge state of those PRs is authoritative. This section describes the direction of the architecture without collapsing draft work into shipped behavior.
 
@@ -128,9 +128,9 @@ CI executes the same semantic contract through the Cloudflare model, the actual 
 
 The point is not that the runtimes are identical. The point is that the **experiment semantics survive the runtime change**.
 
-## ElixiPG — Elixip Proving Grounds
+## Omni Proving Grounds
 
-**ElixiPG** is the first named proving-ground layer around Omni. It connects a controlled trial to an execution ground and requires machine-readable evidence before a trial can be called proven.
+The **Omni Proving Grounds** connect a controlled trial to an execution ground and require machine-readable evidence before a trial can be called proven. **ElixiPG** is the first named ground; the trial contract itself is not Elixip-specific.
 
 ```text
 Trial
@@ -149,12 +149,16 @@ validation / verdict
 The authority boundary is explicit:
 
 ```text
-Elixip makes communications behavior happen.
-Omni records and evaluates what happened.
-ElixiPG defines the controlled trial.
+The ground makes behavior happen.
+Omni controls experiment identity and evidence.
+The trial constrains what may be tested.
+The agent may choose among authorized experiments.
+The verdict is independent of the agent.
 ```
 
 A manifest cannot make itself `proven`. `npm run test:elixipg` validates the trial registry and verifies the declared evidence for proven trials.
+
+Trials run in one of two modes. A **`conformance`** trial knows its expected behavior and assertions in advance. A **`discovery`** trial deliberately withholds the relevant environment rules from the routine under evaluation, which must infer and demonstrate valid invariants through bounded experiments.
 
 ### PG-001 — Runtime Independence — `PROVEN`
 
@@ -178,7 +182,39 @@ PG-002 is the next communications proving-ground boundary on `main`:
 
 It must not become `proven` until a real Elixip SIP scenario emits normalized Omni evidence and satisfies the trial's declared assertions.
 
-See [`proving-grounds/`](proving-grounds/) and [`ports/elixip/`](ports/elixip/).
+### PG-003 — Discovery Under Uncertainty — `PROVEN`
+
+![PG-003 case file: the Omni Proving Grounds scenario folder for Discovery Under Uncertainty, showing the 16 → 8 → 4 → 2 → 1 hypothesis funnel, the four discovered access-control rules with their evidence IDs PG-003-E-001 through PG-003-E-004, the experiment → observation → hypothesis → next experiment → evidence-backed assertion discovery loop, and a passing independent verification slip for four experiments](docs/images/pg-003-case-file.png)
+
+PG-003 is the first proven `discovery` trial. It builds a synthetic authorization world with four hidden Boolean rules that are never passed to the discovery routine. The routine receives only eight manifest-declared experiments, one fixed command boundary (`synthetic-authz-world` / `sut.authz.probe` / `PROBE_AUTHZ`), an execution function, and an eight-experiment budget.
+
+Starting from all 16 possible rule combinations, it selects each next experiment by information gain and converges in four:
+
+| Seq | Experiment | Observation | Hypotheses | Evidence |
+| --- | --- | --- | --- | --- |
+| 1 | `locked_read` | denied | 16 → 8 | `PG-003-E-001` |
+| 2 | `post_downgrade_delete` | denied | 8 → 4 | `PG-003-E-002` |
+| 3 | `user_delete` | denied | 4 → 2 | `PG-003-E-003` |
+| 4 | `user_write` | allowed | 2 → 1 | `PG-003-E-004` |
+
+An independent deterministic grader — not the routine's own self-assessment — then requires all four of `exactDiscovery` (discovered rule-set digest equals the hidden oracle digest), `boundaryPreserved`, `everyClaimHasEvidence`, and `withinBudget`. The record and verdict are written to `conformance/generated/discovery/`.
+
+The governing rule is an authority constraint, not a capability grant:
+
+> **Give the machine freedom to discover without giving it freedom to act outside the experimental boundary.**
+
+A discovery routine may choose among already-authorized experiments. It may not mint capabilities, adapters, tools, shell access, credentials, or alternate effect paths. Every effect still traverses the same canonical path as any other Omni experiment:
+
+```text
+experimental choice → canonical Omni intent → capability/adapter check
+→ authorized effect boundary → world under test → observation → evidence plane
+```
+
+Two limits are deliberate and unresolved. The hidden oracle is separated from the discovery routine by interface, not by a separate process or trust domain, so this does not prove secrecy against an adversary that can read the harness source. And a synthetic Boolean authorization world is not a production federal system; the next slice keeps the contract and replaces the world with a governed SUT.
+
+The architectural pattern is adopted from **DiG-bench: Discovery in Games** (`discos-research/dig-bench`). No DiG-bench source or benchmark content is copied.
+
+See [`proving-grounds/`](proving-grounds/), [`ports/elixip/`](ports/elixip/), and [discovery trials](docs/DISCOVERY-TRIALS.md).
 
 ## Cloudflare reference runtime
 
@@ -296,7 +332,7 @@ That distinction is what makes Omni useful for controlled communications researc
 - `conformance` — canonical Omni Core fixtures, schemas, generated traces, and cross-runtime equivalence artifacts.
 - `ports/jain-slee` — JAIN SLEE implementation of the Omni behavior boundary.
 - `ports/elixip` — Elixip `SIP.Scenario` conformance adapter and proving-ground integration.
-- `proving-grounds` — ElixiPG trial registry and machine-enforced trial contracts.
+- `proving-grounds` — Omni Proving Grounds trial registry and machine-enforced conformance/discovery trial contracts.
 - `docs/omni-core` — runtime-neutral semantic specification and lineage notes.
 - `migrations` — ordered D1 migrations.
 
@@ -335,8 +371,11 @@ Omni Core and proving-ground gates:
 ```bash
 npm run test:conformance
 npm run test:conformance:elixip
+npm run test:discovery:pg003
 npm run test:elixipg
 ```
+
+`npm run test:discovery:pg003` is self-contained and runs the hidden-rule discovery proof plus its independent grader. `npm run test:elixipg` runs that proof and then validates the trial registry, which additionally requires the cross-runtime semantic traces produced by `npm run test:conformance`.
 
 The complete GitHub Actions pipeline also compiles the JAIN SLEE and pinned Elixip runtimes, executes the canonical conformance fixtures, performs cross-runtime semantic comparison, validates proven proving-ground evidence, runs Worker/D1/R2/Durable Object integration tests, and finishes with the two-context Chromium/WebRTC vertical slice.
 
