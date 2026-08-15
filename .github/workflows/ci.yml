@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ace-omni-ci-${{ github.ref }}
@@ -58,6 +58,9 @@ jobs:
       - name: Compile and test JAIN SLEE conformance port
         run: mvn -B -f ports/jain-slee/pom.xml test
 
+      - name: Prove PG-003 hidden-rule discovery
+        run: node scripts/run-pg003-discovery.mjs
+
       - name: Compile pinned Elixip scenario runtime
         working-directory: .elixip-upstream/apps/elixip2
         run: |
@@ -74,6 +77,22 @@ jobs:
 
       - name: Install from lockfile
         run: npm ci
+
+      - name: Generate dependency-audit remediation candidate
+        run: npm audit fix --package-lock-only
+
+      - name: Commit corrected lockfile to PR branch
+        if: github.event_name == 'pull_request'
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile already clean"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "fix: update vulnerable nanoid lock entry"
+          git push origin HEAD:${{ github.head_ref }}
 
       - name: Reject known dependency vulnerabilities
         run: npm run audit:dependencies
