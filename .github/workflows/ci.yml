@@ -70,6 +70,9 @@ jobs:
       - name: Compile and test JAIN SLEE conformance port
         run: mvn -B -f ports/jain-slee/pom.xml test
 
+      - name: Verify SLEE authorization candidate invariants
+        run: npm run test:authorization:slee
+
       - name: Compile pinned Elixip scenario runtime
         working-directory: .elixip-upstream/apps/elixip2
         run: |

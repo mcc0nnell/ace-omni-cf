@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "profileId": "ace-omni-slee-iato-candidate-v1",
+  "title": "ACE Omni SLEE IATO Candidate Authorization Profile",
+  "status": "candidate-not-authorized",
+  "purpose": "Describe and continuously test the current JAIN SLEE execution boundary as a candidate authorization architecture. This profile is evidence for assessment; it is not an authorization decision.",
+  "runtime": {
+    "kind": "jain-slee",
+    "port": "ports/jain-slee",
+    "behaviorAuthority": "OmniCallSbb",
+    "effectBoundary": "OmniTransportRaSbbInterface",
+    "boundaryRule": "SBB owns behavior. Resource Adaptor owns I/O.",
+    "externalEffectPath": [
+      "accepted OmniEvent",
+      "deterministic SBB transition",
+      "OmniCommand",
+      "OmniTransportRaSbbInterface.execute",
+      "Resource Adaptor",
+      "external resource"
+    ]
+  },
+  "oscal": {
+    "relationship": "OSCAL describes the authorization package and assurance topology; it does not grant runtime execution authority.",
+    "requiredAuthorizationPackageKinds": [
+      "system-security-plan",
+      "assessment-plan",
+      "assessment-results",
+      "plan-of-action-and-milestones"
+    ],
+    "generatedGraph": "conformance/generated/oscal/ifa-graph.json",
+    "sourceManifest": "conformance/oscal/fixtures.json"
+  },
+  "claims": [
+    {
+      "id": "AUTH-SLEE-001",
+      "statement": "Experiment behavior and state transitions are owned by the SBB, while external effects are emitted through the Resource Adaptor contract.",
+      "evidence": [
+        "ports/jain-slee/src/main/java/org/aceomni/slee/OmniCallSbb.java",
+        "ports/jain-slee/src/main/java/org/aceomni/slee/OmniTransportRaSbbInterface.java"
+      ]
+    },
+    {
+      "id": "AUTH-SLEE-002",
+      "statement": "The SBB does not directly import common network-client APIs and its effectful path calls the Resource Adaptor interface.",
+      "evidence": [
+        "ports/jain-slee/src/main/java/org/aceomni/slee/OmniCallSbb.java"
+      ]
+    },
+    {
+      "id": "AUTH-SLEE-003",
+      "statement": "Events from another run or activity cannot mutate the active SBB state machine.",
+      "evidence": [
+        "ports/jain-slee/src/main/java/org/aceomni/slee/OmniCallSbb.java",
+        "ports/jain-slee/src/test/java/org/aceomni/slee/OmniCallSbbTest.java"
+      ]
+    },
+    {
+      "id": "AUTH-SLEE-004",
+      "statement": "Accepted event identities are idempotent and duplicate delivery cannot produce a second command or transition.",
+      "evidence": [
+        "ports/jain-slee/src/main/java/org/aceomni/slee/OmniCallSbb.java",
+        "ports/jain-slee/src/test/java/org/aceomni/slee/OmniCallSbbTest.java"
+      ]
+    },
+    {
+      "id": "AUTH-SLEE-005",
+      "statement": "COMPLETED and FAILED are terminal and later events cannot reopen authoritative run state.",
+      "evidence": [
+        "ports/jain-slee/src/main/java/org/aceomni/slee/OmniCallSbb.java",
+        "ports/jain-slee/src/main/java/org/aceomni/slee/OmniRunState.java",
+        "ports/jain-slee/src/test/java/org/aceomni/slee/OmniCallSbbTest.java"
+      ]
+    },
+    {
+      "id": "AUTH-SLEE-006",
+      "statement": "The SLEE port and OSCAL authorization-package graph remain separate authority domains: runtime commands flow through the RA boundary, while OSCAL artifacts describe assurance and assessment evidence.",
+      "evidence": [
+        "ports/jain-slee/README.md",
+        "docs/omni-core/SPEC.md",
+        "conformance/oscal/README.md"
+      ]
+    }
+  ],
+  "authorizationGaps": [
+    {
+      "id": "GAP-001",
+      "severity": "blocking",
+      "statement": "No concrete deployable micro-JAIN-SLEE Resource Adaptor lifecycle and descriptor is bound in this repository."
+    },
+    {
+      "id": "GAP-002",
+      "severity": "blocking",
+      "statement": "The production deployment boundary, network paths, identities, secrets, and least-privilege service accounts are not defined by this conformance port."
+    },
+    {
+      "id": "GAP-003",
+      "severity": "blocking",
+      "statement": "Security logging, audit retention, evidence persistence, and operator access controls are not yet bound to the SLEE runtime."
+    },
+    {
+      "id": "GAP-004",
+      "severity": "blocking",
+      "statement": "The repository does not yet provide a complete system-specific OSCAL SSP, assessment plan, assessment results, or POA&M for an ACE Omni deployment."
+    },
+    {
+      "id": "GAP-005",
+      "severity": "blocking",
+      "statement": "Software supply-chain, dependency, container, host, and runtime hardening evidence must be assessed for the concrete deployment."
+    }
+  ],
+  "decisionRule": "Passing this profile means the repository preserves the candidate architectural invariants. It must never be interpreted as an IATO, ATO, control pass, or authorizing-official decision."
+}
