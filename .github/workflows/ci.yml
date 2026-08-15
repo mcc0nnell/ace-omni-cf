@@ -78,6 +78,17 @@ jobs:
       - name: Install from lockfile
         run: npm ci
 
+      - name: Generate dependency-audit remediation candidate
+        run: npm audit fix --package-lock-only
+
+      - name: Preserve corrected lockfile candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-lockfile-${{ github.run_id }}
+          if-no-files-found: error
+          retention-days: 1
+          path: package-lock.json
+
       - name: Reject known dependency vulnerabilities
         run: npm run audit:dependencies
 
