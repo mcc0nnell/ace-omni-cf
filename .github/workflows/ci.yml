@@ -21,6 +21,7 @@ jobs:
       WRANGLER_SEND_METRICS: "false"
       XDG_CONFIG_HOME: /tmp/ace-omni-xdg-ci
       ELIXIP_DIR: ${{ github.workspace }}/.elixip-upstream
+      OSCAL_CONTENT_DIR: ${{ github.workspace }}/.oscal-content-upstream
     steps:
       - name: Check out the exact revision
         uses: actions/checkout@v4
@@ -54,6 +55,17 @@ jobs:
           ref: fd0f7bf703dddfcefcf2cb28205776a5a402e192
           path: .elixip-upstream
           persist-credentials: false
+
+      - name: Check out pinned NIST OSCAL content
+        uses: actions/checkout@v4
+        with:
+          repository: usnistgov/oscal-content
+          ref: 78650f02ad9321bb7b817846f8fbd4f2bcd620de
+          path: .oscal-content-upstream
+          persist-credentials: false
+
+      - name: Normalize pinned NIST OSCAL package
+        run: npm run test:oscal
 
       - name: Compile and test JAIN SLEE conformance port
         run: mvn -B -f ports/jain-slee/pom.xml test
