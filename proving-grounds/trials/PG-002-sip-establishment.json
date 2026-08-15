@@ -1,6 +1,7 @@
 {
   "id": "PG-002",
   "title": "SIP Establishment",
+  "mode": "conformance",
   "status": "planned",
   "objective": "Bind Omni START_ACTIVITY to a real Elixip SIP INVITE/dialog lifecycle and normalize resulting signaling and media observations back into Omni Core evidence.",
   "executor": {
