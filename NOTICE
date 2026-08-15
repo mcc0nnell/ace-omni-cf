@@ -26,10 +26,46 @@ SF26 repository at commit 8b40b449953760e6496f781490329fac41b59633. The
 adaptation transfers reconnect, idempotency, token-governance, and contrast
 discipline only. It does not use SF26 names, slogans, marks, or visual assets.
 
+Elixip / ElixiPG
+----------------
+
+ACE Omni also integrates with Elixip as an external execution runtime for the
+ElixiPG proving ground:
+
+https://github.com/neutrino38/elixip
+
+The integration is pinned to Elixip commit
+fd0f7bf703dddfcefcf2cb28205776a5a402e192. Elixip is licensed by Emmanuel Buu /
+La Tribuu under the Business Source License 1.1 (BSL 1.1), with an Additional
+Use Grant and a later change to GPL-3.0-or-later on the version-specific Change
+Date described by the upstream license.
+
+ACE Omni does not vendor Elixip implementation source. The ElixiPG integration
+contains ACE Omni-authored `.exs` scenario/conformance code and invokes an
+external Elixip checkout. Elixip's upstream license expressly exempts `.exs`
+scripts and scenarios executed by the Elixip scenario engine from derivative-
+work treatment, allowing their authors to license them independently.
+
+The upstream Additional Use Grant permits production use of Elixip subject to
+explicit credit and contribution-back requirements for fixes and improvements
+to Elixip itself. It separately reserves paid products or services that compete
+with Elixip in identified SBC, SIP proxy/B2BUA, or SIP/RTP/WebRTC testing
+categories for commercial licensing. ACE Omni's current ElixiPG integration is
+non-production research/conformance infrastructure and is not intended to claim
+a broader right than the upstream Elixip license grants.
+
+Elixip attribution:
+
+Elixip — SIP/RTP/WebRTC tooling by Emmanuel Buu / La Tribuu
+https://github.com/neutrino38/elixip
+
+The complete upstream Elixip license controls use of Elixip:
+https://github.com/neutrino38/elixip/blob/fd0f7bf703dddfcefcf2cb28205776a5a402e192/LICENSE.md
+
 The later modifications are not presented as work authored, reviewed,
 approved, or published by the original publisher, the Federal Communications
-Commission, or the United States Government. No endorsement by those
-organizations is implied.
+Commission, the United States Government, or the Elixip licensor. No
+endorsement by those organizations or persons is implied.
 
 Publication basis and limits
 ----------------------------
@@ -40,5 +76,6 @@ Unlimited 24-0463." That identifier is reported only as provenance for the
 original material. It is not represented as a separate public-release review,
 copyright permission, or other authorization for the later modifications.
 
-This file documents repository provenance; it is not a legal opinion. The Git
-history is the authoritative record of who changed each file and when.
+This file documents repository provenance and third-party boundaries; it is not
+a legal opinion. The Git history is the authoritative record of who changed
+each file and when.
