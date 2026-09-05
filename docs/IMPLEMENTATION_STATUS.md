@@ -17,6 +17,7 @@ Status is evidence-based: “tested” means the path has executed in automation
 | Experiment-derived signed schedule | Tested | deterministic engine, runtime identity mapping, HMAC verification |
 | WebRTC audio/video | Tested | two independent Chromium contexts with fake devices |
 | WebRTC telemetry → observation ledger | Implemented and integration-tested | `getStats()` observer emits durable generic observations; the room creates the envelope, deduplicates lost-ACK replay, sequences to D1, and finalized manifests retain the observation |
+| Baudot `ObservationInput` → generic Omni ledger | Implemented and integration-tested | exact 17-record `BAUDOT-INTEROP-004` bundle from Baudot PR #45 is source-bound, re-enveloped under an Omni run, sequenced, exact-replay deduplicated, conflict-rejected, exported with a stable digest, and semantically round-tripped |
 | Mock captions | Tested | both contexts exchange and render synthetic captions |
 | Caption appearance and semantic tokens | Tested at unit/build level | pinned size/contrast/attribution are rendered; token export drift, critical contrast pairs, forced colors, reduced motion, and touch target are asserted |
 | Caption and audio schedule execution | Tested | exact schedule offsets persisted; AudioWorklet frame mapping unit tests |
@@ -31,6 +32,7 @@ Status is evidence-based: “tested” means the path has executed in automation
 - AudioWorklet `gain`, `background_noise`, `packet_drop`, and one-pole `audio_filter` conditions are implemented; only gain is exercised in the browser slice, while deterministic frame mapping is unit-tested.
 - Caption delay is exercised in the browser slice. Caption dropout/error implementations use deterministic seeded decisions but are not yet covered by a browser matrix.
 - R2 retention days are captured in policy but lifecycle deletion rules must be configured at the bucket level before production.
+- `ObservationIngestionLedger` provides protocol-level authority, replay semantics, sequence, and immutable export for externally produced candidate bundles. Generic-run D1/R2 persistence is not yet implemented; the live TRS Durable Object/D1 path remains the durable call-scoped observation authority.
 
 ## Explicitly stubbed or out of scope for this slice
 
@@ -38,15 +40,17 @@ Status is evidence-based: “tested” means the path has executed in automation
 - Version 1 supports exactly caller and callee. Communications-assistant/VRS multi-party topology is deferred.
 - Recruitment, consent authoring, participant compensation, and study randomization workflows are not implemented.
 - Cloudflare Realtime TURN credentials and an SFU path are not implemented.
+- Generic `ExperimentRun` and externally imported observation-ledger persistence to D1/R2 are not implemented.
 - Production resources, domains, secrets, retention rules, alerts, and deployment have not been created.
 - Login rate limiting, account recovery, MFA/SSO, and institutional identity integration remain recommended production work.
 - Full assistive-technology and real-device accessibility matrices remain future validation; semantic labels, focus visibility, status regions, and keyboard controls are present.
 
 ## Recommended next work
 
-1. Integrate short-lived Cloudflare Realtime TURN credentials and test restrictive NAT paths.
-2. Add MFA/SSO, login throttling, session administration, and operational key rotation.
-3. Run real AudioWorklet device/browser matrices and quantify frame variance under load.
-4. Add study consent/recruitment controls and institutional data-governance workflows.
-5. Configure R2 lifecycle/encryption policy, alerting, log sinks, and disaster-recovery exercises.
-6. Extend schemas and call topology for communications assistants and VRS.
+1. Persist generic experiment runs and imported observation ledgers without weakening source-binding or replay-conflict invariants.
+2. Integrate short-lived Cloudflare Realtime TURN credentials and test restrictive NAT paths.
+3. Add MFA/SSO, login throttling, session administration, and operational key rotation.
+4. Run real AudioWorklet device/browser matrices and quantify frame variance under load.
+5. Add study consent/recruitment controls and institutional data-governance workflows.
+6. Configure R2 lifecycle/encryption policy, alerting, log sinks, and disaster-recovery exercises.
+7. Extend schemas and call topology for communications assistants and VRS.
