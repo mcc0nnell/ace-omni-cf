@@ -1,0 +1,82 @@
+{
+  "id": "PG-004",
+  "title": "Baudot Cross-Transport T.140 Equivalence",
+  "status": "planned",
+  "objective": "Execute Baudot BAUDOT-INTEROP-002 as a controlled Omni experiment and preserve source-transport, normalized T.140, target-transport, presentation, loss-marker, and verdict evidence across RFC 4103 RTP/RED and RFC 8865 T.140 data-channel interworking.",
+  "executor": {
+    "kind": "external-testkit-adapter",
+    "runtime": "baudot"
+  },
+  "externalContract": {
+    "repository": "mcc0nnell/baudot",
+    "contractId": "BAUDOT-INTEROP-002",
+    "developmentReference": "pull/10",
+    "pinningRule": "A development PR may identify the contract while this trial is planned. Before the trial becomes runnable, Omni must pin an exact merged Baudot commit and immutable contract digest; a branch or PR reference is not sufficient evidence identity."
+  },
+  "relationship": {
+    "baudotOwns": [
+      "portable T.140 presentation and transport semantics",
+      "cross-transport gateway invariants",
+      "standards-grounded test vectors and claim boundaries"
+    ],
+    "omniOwns": [
+      "trial identity and execution plan",
+      "adapter capability authorization",
+      "ordered observations and evidence identity",
+      "comparison, replay, and terminal verdict"
+    ]
+  },
+  "plannedFlow": [
+    "PIN_BAUDOT_CONTRACT",
+    "START_BAUDOT_TRIAL",
+    "CAPTURE_SOURCE_TRANSPORT_TRACE",
+    "CAPTURE_NORMALIZED_T140_TRACE",
+    "CAPTURE_TARGET_TRANSPORT_TRACE",
+    "REDUCE_PRESENTATION_RESULT",
+    "COUNT_EXPLICIT_MISSING_TEXT_MARKERS",
+    "COMPARE_EXPECTED_SEMANTICS",
+    "PRESERVE_EVIDENCE",
+    "TERMINAL_VERDICT"
+  ],
+  "assertions": [
+    "baudot_contract_is_pinned_before_execution",
+    "source_transport_observations_do_not_become_experiment_authority",
+    "normalized_t140_trace_is_preserved_separately_from_transport_metadata",
+    "recovered_rtp_loss_does_not_create_a_false_missing_text_marker",
+    "unrecovered_or_suspected_loss_preserves_explicit_missing_text_marker_evidence",
+    "empty_t140block_is_not_misclassified_as_loss",
+    "transport_packet_boundaries_are_not_used_as_semantic_equivalence",
+    "presentation_result_is_derived_from_the_shared_t140_semantics",
+    "baudot_conformance_claims_cannot_be_promoted_by_omni_trial_status",
+    "terminal_verdict_is_bound_to_the_pinned_contract_and_evidence"
+  ],
+  "evidence": {
+    "requiredBeforeRunnable": [
+      "merged Baudot BAUDOT-INTEROP-002 contract pinned by commit and digest",
+      "executable RFC 4103 adapter",
+      "executable RFC 8865 adapter",
+      "gateway harness that emits normalized T.140 observations",
+      "Omni adapter that preserves Baudot trial identity and evidence correlation"
+    ],
+    "requiredBeforeProven": [
+      "pinned Baudot contract identity and digest",
+      "pinned input trial vector",
+      "source transport trace",
+      "normalized post-recovery T.140 trace",
+      "target transport trace",
+      "presentation result",
+      "missing-text marker count and reason",
+      "comparison result",
+      "terminal Omni verdict"
+    ]
+  },
+  "claimBoundary": {
+    "doesNotEstablish": [
+      "full T.140 conformance",
+      "full RFC 4103 conformance",
+      "full RFC 8865 conformance",
+      "production gateway authorization",
+      "Baudot conformance merely because an Omni trial passes"
+    ]
+  }
+}
