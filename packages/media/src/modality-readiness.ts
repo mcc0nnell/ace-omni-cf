@@ -31,6 +31,7 @@ export interface ModalityReadinessObservation {
     peerConnection: ReadinessState;
   };
   transport: {
+    connection: ReadinessState;
     ice: ReadinessState;
     candidatePair: ReadinessState;
   };
@@ -63,6 +64,13 @@ function observedFlag(value: boolean | undefined, failed = false): ReadinessStat
 function signalingState(value: string): ReadinessState {
   if (value === "stable") return "ready";
   if (value === "closed") return "failed";
+  if (value === "unknown") return "unknown";
+  return "pending";
+}
+
+function connectionState(value: string): ReadinessState {
+  if (value === "connected") return "ready";
+  if (value === "failed" || value === "closed") return "failed";
   if (value === "unknown") return "unknown";
   return "pending";
 }
@@ -121,6 +129,7 @@ export function deriveModalityReadiness(
 
   const session = observedFlag(signals.sessionEstablished, signals.sessionFailed);
   const peerConnection = signalingState(sample.signalingState);
+  const connection = connectionState(sample.connectionState);
   const ice = iceState(sample.iceConnectionState);
   const candidatePair = candidatePairState(sample);
   const audioInbound = inboundState(sample, "audio");
@@ -134,7 +143,13 @@ export function deriveModalityReadiness(
   const firstT140Character = observedFlag(signals.firstT140CharacterObserved, signals.rttFailed);
   const rttReady = combine([negotiated, firstT140Character]);
 
-  const requiredStates: ReadinessState[] = [session, peerConnection, ice, candidatePair];
+  const requiredStates: ReadinessState[] = [
+    session,
+    peerConnection,
+    connection,
+    ice,
+    candidatePair,
+  ];
   if (required.audio) requiredStates.push(audioInbound);
   if (required.video) requiredStates.push(videoInbound, videoDecoded, videoRendered);
   if (required.rtt) requiredStates.push(rttReady);
@@ -145,7 +160,7 @@ export function deriveModalityReadiness(
     sequence: sample.sequence,
     observedAtMs: sample.observedAtMs,
     signaling: { session, peerConnection },
-    transport: { ice, candidatePair },
+    transport: { connection, ice, candidatePair },
     media: { audioInbound, videoInbound, videoDecoded, videoRendered },
     rtt: { negotiated, firstT140Character, ready: rttReady },
     required,
