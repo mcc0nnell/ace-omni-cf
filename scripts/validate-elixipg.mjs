@@ -5,6 +5,17 @@ const TRIALS_DIR = new URL("../proving-grounds/trials/", import.meta.url);
 const FIXTURES_DIR = new URL("../conformance/fixtures/", import.meta.url);
 const GENERATED_DIR = new URL("../conformance/generated/", import.meta.url);
 const ALLOWED_STATES = new Set(["planned", "runnable", "proven", "regressed"]);
+const PINNED_BAUDOT_INTEROP_002 = Object.freeze({
+  repository: "mcc0nnell/baudot",
+  contractId: "BAUDOT-INTEROP-002",
+  path: "testkit/gateways/rfc4103-rfc8865-equivalence-v1.json",
+  mergedCommit: "8bf9bf07484ed5128a697ba002b7a965e7adf1a2",
+  gitBlobSha: "e8ac8f52d4816949ba915db7c1ce42fe1cf3db31",
+  digestAlgorithm: "sha256",
+  digestCanonicalization:
+    "canonical-json-v1: UTF-8 JSON, object keys sorted recursively, separators ',' and ':', no insignificant whitespace, Unicode emitted without ASCII escaping",
+  digestValue: "fdae645768ac7c54a3ab41a1bf6c63b2649805c272c8882517030145209fd191",
+});
 
 async function loadJson(url) {
   return JSON.parse(await readFile(url, "utf8"));
@@ -20,6 +31,38 @@ function comparable(trace) {
 function requireString(value, label) {
   if (typeof value !== "string" || value.trim() === "") {
     throw new Error(`${label} must be a non-empty string`);
+  }
+}
+
+function validatePg004Pin(trial) {
+  const contract = trial.externalContract;
+  if (!contract || typeof contract !== "object" || Array.isArray(contract)) {
+    throw new Error("PG-004: externalContract must be an object");
+  }
+  if (contract.developmentReference !== undefined) {
+    throw new Error("PG-004: mutable developmentReference must not be used after contract merge");
+  }
+
+  const actual = {
+    repository: contract.repository,
+    contractId: contract.contractId,
+    path: contract.path,
+    mergedCommit: contract.mergedCommit,
+    gitBlobSha: contract.gitBlobSha,
+    digestAlgorithm: contract.digest?.algorithm,
+    digestCanonicalization: contract.digest?.canonicalization,
+    digestValue: contract.digest?.value,
+  };
+
+  if (!isDeepStrictEqual(actual, PINNED_BAUDOT_INTEROP_002)) {
+    throw new Error(
+      `PG-004: Baudot contract identity diverged from the reviewed immutable pin: ${JSON.stringify(actual)}`,
+    );
+  }
+  if (trial.status !== "planned") {
+    throw new Error(
+      "PG-004: immutable contract identity is pinned, but the trial must remain planned until the executable gateway evidence gates are satisfied",
+    );
   }
 }
 
@@ -47,6 +90,8 @@ for (const filename of filenames) {
   if (!Array.isArray(trial.assertions) || trial.assertions.length === 0) {
     throw new Error(`${trial.id}: assertions must be a non-empty array`);
   }
+
+  if (trial.id === "PG-004") validatePg004Pin(trial);
 
   if (trial.status !== "proven") {
     console.log(`• ${trial.id} ${trial.title}: ${trial.status}`);
