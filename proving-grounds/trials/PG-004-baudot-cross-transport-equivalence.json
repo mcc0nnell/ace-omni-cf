@@ -10,8 +10,16 @@
   "externalContract": {
     "repository": "mcc0nnell/baudot",
     "contractId": "BAUDOT-INTEROP-002",
-    "developmentReference": "pull/10",
-    "pinningRule": "A development PR may identify the contract while this trial is planned. Before the trial becomes runnable, Omni must pin an exact merged Baudot commit and immutable contract digest; a branch or PR reference is not sufficient evidence identity."
+    "path": "testkit/gateways/rfc4103-rfc8865-equivalence-v1.json",
+    "mergedCommit": "8bf9bf07484ed5128a697ba002b7a965e7adf1a2",
+    "gitBlobSha": "e8ac8f52d4816949ba915db7c1ce42fe1cf3db31",
+    "digest": {
+      "algorithm": "sha256",
+      "canonicalization": "canonical-json-v1: UTF-8 JSON, object keys sorted recursively, separators ',' and ':', no insignificant whitespace, Unicode emitted without ASCII escaping",
+      "value": "fdae645768ac7c54a3ab41a1bf6c63b2649805c272c8882517030145209fd191"
+    },
+    "historicalDevelopmentReference": "pull/10",
+    "pinningRule": "Execution must resolve the contract from the exact merged Baudot commit and verify the declared immutable identities before starting. A branch or PR reference is not sufficient evidence identity."
   },
   "relationship": {
     "baudotOwns": [
@@ -28,6 +36,7 @@
   },
   "plannedFlow": [
     "PIN_BAUDOT_CONTRACT",
+    "VERIFY_BAUDOT_CONTRACT_IDENTITY",
     "START_BAUDOT_TRIAL",
     "CAPTURE_SOURCE_TRANSPORT_TRACE",
     "CAPTURE_NORMALIZED_T140_TRACE",
@@ -40,6 +49,7 @@
   ],
   "assertions": [
     "baudot_contract_is_pinned_before_execution",
+    "baudot_contract_identity_is_verified_before_execution",
     "source_transport_observations_do_not_become_experiment_authority",
     "normalized_t140_trace_is_preserved_separately_from_transport_metadata",
     "recovered_rtp_loss_does_not_create_a_false_missing_text_marker",
