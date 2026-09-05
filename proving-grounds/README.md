@@ -70,6 +70,30 @@ The historical ACE Direct JsSIP timeout patch motivates the condition but is not
 
 The readiness vocabulary is defined in [`docs/MODALITY_READINESS.md`](../docs/MODALITY_READINESS.md).
 
+### PG-004 — Baudot Cross-Transport T.140 Equivalence
+
+Execute the portable Baudot `BAUDOT-INTEROP-002` contract as an Omni proving-ground trial across RFC 4103 RTP/RED and RFC 8865 T.140 data-channel interworking.
+
+The authority boundary is deliberate: **Baudot owns the standards-grounded protocol behavior and gateway invariants; Omni owns trial identity, execution planning, observations, evidence identity, replay, and verdict.** Omni does not acquire the authority to promote a Baudot conformance claim merely because an experiment passes.
+
+PG-004 is intentionally `planned`. A mutable Baudot pull request may identify the development contract while the trial is being designed, but before PG-004 can become `runnable`, the contract must be merged and pinned by exact commit and immutable digest. The planned evidence chain is:
+
+```text
+pinned Baudot contract
+        ↓
+source transport trace
+        ↓
+normalized post-recovery T.140 trace
+        ↓
+target transport trace
+        ↓
+presentation / missing-marker comparison
+        ↓
+Omni evidence + terminal verdict
+```
+
+This keeps protocol conformance, experiment execution, and evidence authority separate instead of allowing any one layer to redefine the others.
+
 ## Architectural rule
 
 ElixiPG must preserve the authority boundary:
