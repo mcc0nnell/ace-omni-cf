@@ -62,6 +62,14 @@ Replace abstract `START_ACTIVITY` in the Elixip conformance scenario with a real
 
 PG-002 is intentionally `planned` until that real SIP path exists.
 
+### PG-003 — Modality Readiness Under Stalled ICE
+
+Carry the next boundary past dialog establishment: preserve signaling, ICE, candidate-pair, inbound-media, decoded-video, rendered-video, and RTT readiness as independent observations while ICE gathering is delayed or incomplete.
+
+The historical ACE Direct JsSIP timeout patch motivates the condition but is not treated as proof that a current implementation shares the same defect. PG-003 is intentionally `planned` until a normal control and a manipulated stalled-ICE arm can be executed and preserved as Omni evidence.
+
+The readiness vocabulary is defined in [`docs/MODALITY_READINESS.md`](../docs/MODALITY_READINESS.md).
+
 ## Architectural rule
 
 ElixiPG must preserve the authority boundary:
