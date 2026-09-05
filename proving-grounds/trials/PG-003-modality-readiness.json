@@ -1,0 +1,61 @@
+{
+  "id": "PG-003",
+  "title": "Modality Readiness Under Stalled ICE",
+  "status": "planned",
+  "objective": "Demonstrate that successful signaling, ICE readiness, inbound media, rendered video, and RTT readiness are preserved as separate observations when candidate gathering is delayed or incomplete.",
+  "executor": {
+    "kind": "browser-webrtc-observer",
+    "runtime": "cloudflare-omni"
+  },
+  "historicalBasis": {
+    "source": "mitre-ace-direct/ace-direct",
+    "observation": "ACE Direct carried a JsSIP 3.5.1 patch that bounded ICE candidate gathering with a two-second escape path.",
+    "scope": "Motivating interoperability evidence only; it does not establish that the same failure exists in current JsSIP, browsers, Elixip, OpenMeetings, or Baudot."
+  },
+  "plannedConditions": [
+    "normal_candidate_gathering_control",
+    "delayed_final_candidate",
+    "no_end_of_candidates_signal",
+    "turn_only",
+    "stun_only",
+    "ice_restart"
+  ],
+  "plannedFlow": [
+    "SESSION_ESTABLISHED",
+    "LOCAL_SDP_READY",
+    "ICE_GATHERING",
+    "CANDIDATE_PAIR_SELECTED",
+    "INBOUND_MEDIA_OBSERVED",
+    "VIDEO_FRAME_DECODED",
+    "VIDEO_FRAME_RENDERED",
+    "RTT_NEGOTIATED",
+    "FIRST_T140_CHARACTER",
+    "SESSION_TERMINATED"
+  ],
+  "assertions": [
+    "session_establishment_does_not_imply_ice_readiness",
+    "ice_readiness_does_not_imply_video_renderability",
+    "decoded_video_does_not_imply_rendered_video",
+    "video_readiness_does_not_imply_rtt_readiness",
+    "rtt_readiness_requires_explicit_negotiation_and_character_evidence",
+    "late_transport_or_media_events_do_not_rewrite_prior_observations"
+  ],
+  "evidence": {
+    "requiredBeforeRunnable": [
+      "deterministic ICE manipulation or controllable interoperability peer",
+      "modality readiness observations emitted into Omni evidence",
+      "at least one normal control and one stalled-ICE arm"
+    ],
+    "requiredBeforeProven": [
+      "repeatable browser/WebRTC execution",
+      "preserved WebRTC telemetry samples",
+      "independent first-video-frame observation",
+      "normalized modality readiness trace",
+      "terminal verdict"
+    ]
+  },
+  "baudotBoundary": {
+    "intent": "Keep the observation vocabulary portable so Baudot can adopt the same readiness contract for SIP RTT/T.140 conformance work.",
+    "claim": "This planned trial does not claim RFC 4103, T.140, or Baudot conformance."
+  }
+}

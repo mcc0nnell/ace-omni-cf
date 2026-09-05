@@ -8,6 +8,7 @@ import type {
 } from "@ace-omni/domain";
 
 export * from "./webrtc-telemetry";
+export * from "./modality-readiness";
 
 export interface AudioClockObservation {
   callClockStartMs: number;
